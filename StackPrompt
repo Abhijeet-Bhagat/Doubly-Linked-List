@@ -1,0 +1,251 @@
+I have an Angular landing page. Below the hero section I have a stats 
+row that currently shows static text on one line like:
+
+  "13+ Systems   |   6 Phases   |   3 Human Perspectives   |   ..."
+
+Replace this with a REFIRE-style scroll-triggered section where each 
+stat animates in one by one as the user scrolls into view. No external 
+libraries — Vanilla TypeScript + CSS only. IntersectionObserver drives 
+everything.
+
+---
+
+### Layout — vertical stacked reveal, not horizontal row
+
+Do NOT keep the stats on one line. Stack them vertically with generous 
+spacing, full width. Each stat is its own visual moment:
+
+  [large number animates up]
+  [label fades in 200ms after number finishes]
+
+  [next number — only appears after scroll brings it into view]
+  [its label]
+
+  ... and so on
+
+Container: max-width 900px, centered, padding 8vw 6vw
+Background: var(--color-bg-surface)  [#111620]
+Each stat block: min-height 30vh, display flex, align-items center
+
+---
+
+### HTML structure
+
+<section class="stats-section">
+  <div class="stat-block" data-target="13" data-suffix="+" data-label="Systems powering the associate experience">
+    <div class="stat-number">
+      <span class="stat-count">0</span>
+      <span class="stat-suffix">+</span>
+    </div>
+    <p class="stat-label">Systems powering the associate experience</p>
+  </div>
+
+  <div class="stat-block" data-target="6" data-suffix="" data-label="Phases across the full journey">
+    <div class="stat-number">
+      <span class="stat-count">0</span>
+      <span class="stat-suffix"></span>
+    </div>
+    <p class="stat-label">Phases across the full journey</p>
+  </div>
+
+  <div class="stat-block" data-target="3" data-suffix="" data-label="Human perspectives — candidate, associate, manager">
+    <div class="stat-number">
+      <span class="stat-count">0</span>
+      <span class="stat-suffix"></span>
+    </div>
+    <p class="stat-label">Human perspectives — candidate, associate, manager</p>
+  </div>
+</section>
+
+Add all your stats as .stat-block elements following the same pattern.
+data-target = the final number to count to
+data-suffix = any symbol after the number (+, %, K, etc.)
+
+---
+
+### SCSS
+
+.stats-section {
+  background: var(--color-bg-surface);
+  padding: 8vw 6vw;
+}
+
+.stat-block {
+  min-height: 28vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-bottom: 0.5px solid var(--color-border);
+  padding: 4rem 0;
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+
+  &.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stat-number {
+  display: flex;
+  align-items: baseline;
+  gap: 0.1em;
+  line-height: 1;
+  margin-bottom: 1.2rem;
+}
+
+.stat-count {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: clamp(5rem, 14vw, 12rem);
+  color: var(--color-text-primary);
+  letter-spacing: -0.04em;
+  /* number starts at 0 — JS animates it up */
+}
+
+.stat-suffix {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: clamp(3rem, 8vw, 7rem);
+  color: var(--color-accent);          /* the + or % in blue */
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: clamp(0.9rem, 1.8vw, 1.2rem);
+  color: var(--color-text-body);
+  letter-spacing: 0.02em;
+  max-width: 500px;
+  line-height: 1.6;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.5s ease 0.3s, transform 0.5s ease 0.3s;
+  /* 0.3s delay — label enters after number finishes */
+
+  .stat-block.visible & {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+---
+
+### TypeScript — IntersectionObserver + counter animation
+
+In ngAfterViewInit(), set up one IntersectionObserver for all .stat-block elements:
+
+private initStatCounters(): void {
+  const blocks = this.el.nativeElement.querySelectorAll('.stat-block');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const block = entry.target as HTMLElement;
+        
+        // 1. Trigger CSS reveal
+        block.classList.add('visible');
+        
+        // 2. Animate the number
+        const target = parseInt(block.dataset['target'] ?? '0', 10);
+        const countEl = block.querySelector('.stat-count') as HTMLElement;
+        this.animateCount(countEl, target);
+        
+        // 3. Only fire once per element
+        observer.unobserve(block);
+      }
+    });
+  }, {
+    threshold: 0.3,   // fires when 30% of the block is visible
+    rootMargin: '0px 0px -80px 0px'
+    // -80px bottom margin: fires slightly before element hits 
+    // the very bottom of viewport — feels more responsive
+  });
+
+  blocks.forEach((block: Element) => observer.observe(block));
+}
+
+private animateCount(el: HTMLElement, target: number): void {
+  const duration = 1200;   // ms — total count animation time
+  const start = performance.now();
+  
+  // easeOutExpo — fast start, slow finish (premium feel)
+  // do NOT use linear — linear counts feel like a loading bar
+  const easeOutExpo = (t: number): number =>
+    t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+
+  const tick = (now: number) => {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = easeOutExpo(progress);
+    
+    el.textContent = Math.round(eased * target).toString();
+    
+    if (progress < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      el.textContent = target.toString(); // lock to exact value
+    }
+  };
+
+  requestAnimationFrame(tick);
+}
+
+Call initStatCounters() at the end of ngAfterViewInit().
+Inject ElementRef as private el: ElementRef in the constructor.
+
+---
+
+### Rules — do not change these
+
+- threshold: 0.3 exactly — lower = fires too early (number counts 
+  while offscreen), higher = fires too late (user misses the start)
+- easeOutExpo only — this easing makes large numbers feel weighty 
+  as they slow down. Linear or easeInOut break the effect.
+- observer.unobserve() after firing — each stat counts exactly once.
+  If it re-fires on scroll back up, the effect is ruined.
+- Label enters 300ms after block becomes visible (transition-delay: 0.3s)
+  — this stagger is what makes it feel sequenced, not simultaneous
+- The suffix (+ sign) is ALWAYS var(--color-accent) blue — 
+  it is the only accent on an otherwise white/grey block
+
+---
+
+### Accessibility
+
+Add to the .stat-block elements:
+  role="text"
+  aria-label="[target][suffix] [label]"
+  e.g. aria-label="13+ Systems powering the associate experience"
+
+This way screen readers announce the complete stat without 
+reading the animated intermediate numbers.
+
+Also:
+@media (prefers-reduced-motion: reduce) {
+  .stat-block {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .stat-label {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+And in TypeScript, skip the animation:
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = target.toString();
+    return;
+  }
+
+---
+
+### Deliverable
+
+Complete HTML section, complete SCSS, and complete TypeScript 
+for the component. No stubs. No TODOs.
