@@ -107,3 +107,168 @@ In Angular landing page component. Replace the plain black background with an im
 
 Show me the complete .ts and .html for the landing page component. No stubs, no TODOs.
 
+---------------------------------------------------------------------------------------
+
+
+I have an Angular landing page with dark background hero headers (h1, h2). 
+I want a lightweight hover distortion effect — no WebGL, no SVG filters, 
+no GSAP. Pure CSS + minimal vanilla TypeScript only.
+
+The effect should feel organic and slightly glitchy — NOT a simple scale/color 
+transition. Think: text that feels unstable when you touch it.
+
+---
+
+### The effect: CSS clip-path slice distortion
+
+On hover, split the heading into 3 visual slices that each shift 
+independently on different axes, giving a "broken signal" / holographic 
+fragmentation feel. This is done entirely with CSS pseudo-elements and 
+custom properties — zero JS except for the mousemove offset.
+
+---
+
+### 1. HTML structure
+
+Wrap each header in a span with data attribute for the text:
+
+<h1>
+  <span class="glitch-text" data-text="Your Heading Here">
+    Your Heading Here
+  </span>
+</h1>
+
+The data-text value must exactly match the visible text — it's used by 
+::before and ::after to clone the text for layer stacking.
+
+---
+
+### 2. SCSS — complete implementation
+
+.glitch-text {
+  position: relative;
+  display: inline-block;
+  color: #ffffff;
+  cursor: default;
+
+  /* Base text — always clean */
+
+  &::before,
+  &::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  /* Slice 1 — shifts right, clips top third, cyan tint */
+  &::before {
+    color: #00ffff;
+    clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%);
+    transform: translateX(0px);
+  }
+
+  /* Slice 2 — shifts left, clips bottom third, red tint */  
+  &::after {
+    color: #ff003c;
+    clip-path: polygon(0 66%, 100% 66%, 100% 100%, 0 100%);
+    transform: translateX(0px);
+  }
+
+  &:hover::before,
+  &:hover::after {
+    opacity: 1;
+  }
+
+  /* On hover, CSS custom properties drive the shift amounts */
+  &:hover::before {
+    transform: translateX(var(--shift-x, 4px));
+    animation: glitch-slice-top 0.3s steps(1) forwards;
+  }
+
+  &:hover::after {
+    transform: translateX(calc(var(--shift-x, -4px) * -1));
+    animation: glitch-slice-bottom 0.3s steps(1) forwards;
+  }
+}
+
+/* Keyframe — snaps between 3-4 offset positions, not smooth — 
+   this is intentional, smooth = cheap, stepped = premium glitch */
+@keyframes glitch-slice-top {
+  0%   { transform: translateX(3px);  clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%); }
+  25%  { transform: translateX(-2px); clip-path: polygon(0 5%, 100% 5%, 100% 38%, 0 38%); }
+  50%  { transform: translateX(5px);  clip-path: polygon(0 0, 100% 0, 100% 28%, 0 28%); }
+  75%  { transform: translateX(-3px); clip-path: polygon(0 2%, 100% 2%, 100% 35%, 0 35%); }
+  100% { transform: translateX(4px);  clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%); }
+}
+
+@keyframes glitch-slice-bottom {
+  0%   { transform: translateX(-3px); clip-path: polygon(0 66%, 100% 66%, 100% 100%, 0 100%); }
+  25%  { transform: translateX(4px);  clip-path: polygon(0 62%, 100% 62%, 100% 95%, 0 95%); }
+  50%  { transform: translateX(-5px); clip-path: polygon(0 68%, 100% 68%, 100% 100%, 0 100%); }
+  75%  { transform: translateX(2px);  clip-path: polygon(0 64%, 100% 64%, 100% 98%, 0 98%); }
+  100% { transform: translateX(-4px); clip-path: polygon(0 66%, 100% 66%, 100% 100%, 0 100%); }
+}
+
+---
+
+### 3. TypeScript — mouse position shifts the slice offset (10 lines max)
+
+In the component, bind (mousemove) on each .glitch-text element:
+
+onGlitchMouseMove(event: MouseEvent): void {
+  const el = event.currentTarget as HTMLElement;
+  const rect = el.getBoundingClientRect();
+  const relX = ((event.clientX - rect.left) / rect.width - 0.5) * 2; // -1 to 1
+  // shift amount is ±6px driven by cursor position across the text
+  el.style.setProperty('--shift-x', `${(relX * 6).toFixed(1)}px`);
+}
+
+onGlitchMouseLeave(event: MouseEvent): void {
+  const el = event.currentTarget as HTMLElement;
+  el.style.removeProperty('--shift-x');
+}
+
+Wire these to (mousemove) and (mouseleave) on each <span class="glitch-text">.
+
+---
+
+### 4. Rules — do not break these
+
+- animation-iteration-count: 1 (forwards) — plays once on hover, 
+  does NOT loop infinitely (looping = cheap loading screen aesthetic)
+- steps(1) timing — the clip-path snaps between positions, never 
+  smoothly interpolates. This is what makes it feel like signal 
+  fragmentation, not a CSS slideshow
+- ::before is CYAN (#00ffff), ::after is RED/MAGENTA (#ff003c) — 
+  these are the chromatic aberration colors. Do not change to 
+  brand colors; the contrast against white base text is the effect
+- Base text (.glitch-text itself) never moves — only the ghost 
+  layers shift. This maintains readability throughout
+- No JS animation loop, no requestAnimationFrame — mousemove 
+  sets one CSS custom property and stops. That's it.
+
+---
+
+### 5. Accessibility
+
+Add this block to your global styles or the component SCSS:
+
+@media (prefers-reduced-motion: reduce) {
+  .glitch-text::before,
+  .glitch-text::after {
+    display: none;
+  }
+}
+
+---
+
+### Deliverable
+
+Complete component HTML, SCSS, and TypeScript. 
+The effect must work on both h1 and h2 elements.
+Use the exact keyframe values above — do not simplify them.
