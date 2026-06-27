@@ -33,3 +33,21 @@ Inputs:
 Constraints:
 - Be accurate and practical; provide code that compiles and runs.
 - Use Angular best practices: standalone components or NgModules (
+
+
+
+
+
+------------
+
+
+Design a cinematic, immersive website experience with minimalist UI and fluid motion transitions. 
+Use large, bold sans-serif typography with tight kerning and high contrast against blurred, desaturated backgrounds. 
+Implement scroll-triggered animations that feel smooth and physics-based — elements should fade, scale, and parallax subtly as the user moves. 
+Employ full-screen hero sections with shallow depth of field imagery and soft gradients to create spatial depth. 
+Navigation should be minimal: a hamburger icon, circular interactive buttons, and micro-interactions that respond to hover and scroll. 
+Typography hierarchy should feel editorial — uppercase headlines, small body text, and precise alignment. 
+Motion design should emphasize continuity: seamless fades, delayed easing, and layered transitions between sections. 
+Use a restrained color palette (muted neutrals, soft greens, warm grays) and cinematic lighting to evoke calm sophistication. 
+Overall aesthetic: immersive storytelling through motion, typography, and spatial rhythm — blending digital precision with organic flow.
+
