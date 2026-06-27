@@ -51,3 +51,59 @@ Motion design should emphasize continuity: seamless fades, delayed easing, and l
 Use a restrained color palette (muted neutrals, soft greens, warm grays) and cinematic lighting to evoke calm sophistication. 
 Overall aesthetic: immersive storytelling through motion, typography, and spatial rhythm — blending digital precision with organic flow.
 
+
+
+----------------------------
+
+
+In Angular landing page component. Replace the plain black background with an immersive 3D particle field using Three.js.
+
+**Requirements — implement ALL of these, no placeholders:**
+
+### Setup
+- Install Three.js via npm (already available or import from CDN in the component if needed)
+- Create a full-viewport <canvas> element as the background, positioned fixed, z-index -1, so existing text/content overlays it naturally
+- Initialize a Three.js WebGLRenderer, Scene, and PerspectiveCamera
+
+### Particle System
+- Create 2000–3000 particles using THREE.BufferGeometry with Float32Array positions
+- Distribute particles in a 3D volume: x/y spread wide (~2000 units), z depth between -500 and +500 units (creates the layered depth illusion)
+- Particle material: THREE.PointsMaterial, size ~1.5–2.5, color white (#ffffff) or soft blue-white (#a8c8ff), transparent, opacity 0.7
+- Vary particle sizes slightly using a size attribute array for depth realism
+
+### Mouse Parallax (THE CORE EFFECT)
+- Track mouse position globally via (mousemove) event on the host element
+- Normalize mouse coords to -1..+1 range (divide by window width/height, multiply by 2, subtract 1)
+- On each animation frame, smoothly lerp the camera position:
+    camera.position.x += (mouseX * 80 - camera.position.x) * 0.05
+    camera.position.y += (-mouseY * 80 - camera.position.y) * 0.05
+  (the 0.05 is the easing factor — smooth follow, not instant snap)
+- camera.lookAt(scene.position) every frame so it always points at center
+
+### Depth layers illusion
+- Split particles into 3 groups with different z-ranges and slightly different sizes/opacities:
+    Layer 1 (foreground): z between -100 and 100, size 2.5, opacity 0.9
+    Layer 2 (mid): z between -300 and 300, size 1.5, opacity 0.6
+    Layer 3 (background): z between -500 and 500, size 0.8, opacity 0.3
+- This creates genuine perceived depth on mouse move
+
+### Subtle auto-rotation
+- In the animation loop, slowly rotate the entire particle group:
+    particles.rotation.y += 0.0003
+    particles.rotation.x += 0.0001
+- This gives ambient life when mouse is not moving
+
+### Angular integration
+- Use ngAfterViewInit() to initialize Three.js (DOM must be ready)
+- Use ngOnDestroy() to cancel animation frame and dispose renderer (prevent memory leak)
+- Handle window resize: update camera.aspect and renderer.setSize on (window:resize)
+- Store animationFrameId as a class property for cleanup
+
+### Code quality
+- No external libraries other than Three.js
+- Typed with TypeScript (import * as THREE from 'three')
+- Self-contained in the component — no service needed
+- Do NOT use any deprecated Three.js APIs (use BufferGeometry, not Geometry)
+
+Show me the complete .ts and .html for the landing page component. No stubs, no TODOs.
+
