@@ -1,0 +1,173 @@
+I have an Angular landing page hero section. The current typography and layout 
+feel generic. Redesign ONLY the hero section HTML + SCSS — do not touch the 
+particle canvas background or TypeScript logic.
+
+Current text content (keep exact words):
+- Eyebrow: "THE TECHNOLOGY BEHIND EVERY GREAT ASSOCIATE EXPERIENCE"
+- H1 line 1: "Employee"
+- H1 line 2: "Digital"  
+- H1 line 3: "Journey."
+- Subtitle: "We built Digital Journey to reveal something most people never see — 
+  the thirteen systems, six phases, and the quiet infrastructure that makes 
+  every associate's experience feel effortless."
+- CTA primary: "See the full picture →"
+- CTA secondary: "Choose your lens"
+
+---
+
+### Typography system — implement exactly
+
+Import from Google Fonts:
+  - Display face: 'Syne' (weights 700, 800) — geometric, wide, modern
+  - Body face: 'Inter' (weights 300, 400) — clean, readable
+
+Font scale:
+  --font-eyebrow: 0.65rem, letter-spacing: 0.2em, weight 400, Inter
+  --font-h1-large: clamp(6rem, 12vw, 11rem)   ← "Employee" — dominates
+  --font-h1-mid: clamp(3.5rem, 7vw, 6.5rem)   ← "Digital" — recedes
+  --font-h1-accent: clamp(5rem, 10vw, 9rem)   ← "Journey." — punches back
+  --font-body: clamp(0.9rem, 1.5vw, 1.1rem), weight 300, line-height 1.7
+
+---
+
+### Layout — break the centered stack
+
+Do NOT center-align everything. Use this structure:
+
+  [eyebrow]                           [year: 2026]
+  
+  Employee                          ← flush left, massive
+       Digital                      ← indented ~15%, outlined only
+  Journey.                          ← flush left, green accent, heaviest weight
+  
+  [subtitle — max-width 480px]      ← left-aligned under the headline block
+  [CTAs — left-aligned row]
+
+Container: max-width 1200px, padding 0 6vw
+Vertical position: hero sits at 42vh from top (slightly above center — 
+intentional, not dead center)
+
+---
+
+### "Employee" treatment
+- Font: Syne 800
+- Color: #FFFFFF  
+- Size: clamp(6rem, 12vw, 11rem)
+- Letter-spacing: -0.03em (tight — large display text should never be loose)
+- Line-height: 0.9
+- NO effects — this line earns attention through scale alone
+
+---
+
+### "Digital" treatment — THIS IS THE KEY LINE
+- Font: Syne 700
+- Color: transparent
+- -webkit-text-stroke: 1.5px rgba(255,255,255,0.45)
+  (outlined, ghosted — recedes behind Employee and Journey)
+- Size: clamp(3.5rem, 7vw, 6.5rem)
+- Margin-left: 12%  ← the indent is intentional tension in the layout
+- Line-height: 1.0
+- Letter-spacing: 0.08em  ← wider tracking on the receding line — 
+  contrast in rhythm, not just size
+
+---
+
+### "Journey." treatment
+- Font: Syne 800
+- Color: #39FF14  (electric green — matches your current brand accent)
+- Size: clamp(5rem, 10vw, 9rem)
+- Letter-spacing: -0.02em
+- Line-height: 0.95
+- The period is part of the brand — do not remove it
+
+---
+
+### Eyebrow line
+- Text: "THE TECHNOLOGY BEHIND EVERY GREAT ASSOCIATE EXPERIENCE"
+- Font: Inter 400
+- Size: 0.65rem
+- Letter-spacing: 0.2em
+- Color: rgba(255,255,255,0.45)
+- Display: flex with a short line (40px, 1px, rgba(255,255,255,0.3)) 
+  before the text — [——— THE TECHNOLOGY BEHIND...]
+- Position: top-left of hero, same horizontal as "Employee"
+
+---
+
+### Year marker "2026"
+- Position: absolute top-right of hero container
+- Font: Inter 300, 0.75rem
+- Color: rgba(255,255,255,0.3)
+- Letter-spacing: 0.15em
+- No border, no box — just the number floating
+
+---
+
+### Subtitle paragraph
+- Max-width: 480px (do NOT let it span full width)
+- Left-aligned under the headline block
+- Font: Inter 300
+- Color: rgba(255,255,255,0.65)
+- Margin-top: 2.5rem from "Journey."
+- Line-height: 1.75
+- First word "We" is NOT bolded or accented — resist that temptation
+
+---
+
+### CTA row
+- Display: flex, align-items: center, gap: 2rem
+- Margin-top: 2.5rem
+
+Primary button "See the full picture →":
+  - Background: transparent
+  - Border: 1.5px solid #39FF14
+  - Color: #39FF14
+  - Font: Inter 400, 0.8rem, letter-spacing 0.1em
+  - Padding: 0.9rem 2rem
+  - Border-radius: 2px (almost square — not pill-shaped)
+  - On hover: background: #39FF14, color: #000000
+  - Transition: all 0.2s ease
+
+Secondary "Choose your lens":
+  - No border, no background
+  - Color: rgba(255,255,255,0.5)
+  - Font: Inter 300, 0.85rem
+  - On hover: color: #ffffff
+  - Add a subtle underline on hover only (text-decoration)
+  - NO button styling — this reads as a text link
+
+---
+
+### "SCROLL" indicator at bottom
+- Position: absolute bottom 2rem, centered horizontally
+- Font: Inter 300, 0.6rem, letter-spacing 0.25em
+- Color: rgba(255,255,255,0.3)
+- Add a 40px vertical line below the text (border-left on a pseudo-element)
+- Animate the line: slow pulse opacity 0.2 → 0.6 → 0.2, 2s infinite
+
+---
+
+### Spacing rules — do not violate these
+- Between eyebrow and "Employee": 3rem
+- Between "Employee" and "Digital": 0rem (they are visually one unit, 
+  line-height carries the separation)
+- Between "Digital" and "Journey.": 0rem (same)
+- Between "Journey." and subtitle: 2.5rem
+- Between subtitle and CTAs: 2rem
+
+---
+
+### What NOT to do
+- Do not add a gradient overlay on the text
+- Do not add text-shadow to any heading
+- Do not add hover effects to the h1 lines (those come separately)
+- Do not center-align any element except the SCROLL indicator
+- Do not add background cards, glassmorphism, or any container 
+  behind the text
+- Do not change the green (#39FF14) — it is the brand color
+
+---
+
+### Deliverable
+Complete HTML template for the hero section component and complete SCSS. 
+No placeholder comments. All values exactly as specified above.
