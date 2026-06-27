@@ -1,0 +1,111 @@
+I have an Angular landing page with CSS custom properties defined in 
+styles.scss or a variables file. Migrate the entire color palette to 
+match the REFIRE aesthetic — cold, technical, aerospace feel.
+
+Replace ALL existing color values with these exact tokens. Create or 
+update a :root block with these CSS custom properties:
+
+---
+
+### New CSS custom properties — add to :root in styles.scss
+
+:root {
+  /* === BACKGROUNDS === */
+  --color-bg-primary:    #0A0D12;   /* main page background — blue-black, NOT #000 */
+  --color-bg-surface:    #111620;   /* cards, sections, panels */
+  --color-bg-elevated:   #1C2333;   /* hover states, dropdowns, elevated cards */
+  --color-bg-border:     #252D3D;   /* borders, dividers, grid lines */
+
+  /* === ACCENT — the ONLY accent color === */
+  --color-accent:        #4DAFFF;   /* primary CTA, active states, key numbers */
+  --color-accent-bright: #7CC4FF;   /* hover on accent elements, glow source */
+  --color-accent-deep:   #1A7FE0;   /* button fills, pressed states */
+
+  /* === TYPOGRAPHY === */
+  --color-text-primary:  #FFFFFF;   /* H1, H2, display headings only */
+  --color-text-body:     #C8D4E8;   /* all body copy — blue-tinted grey, NOT white */
+  --color-text-muted:    #5A6880;   /* eyebrows, captions, labels, metadata */
+
+  /* === PARTICLES (Three.js canvas) === */
+  --color-particle-bg:   #2A5F9E;   /* background layer — lowest opacity */
+  --color-particle-mid:  #3A8FD4;   /* mid layer */
+  --color-particle-fg:   #B8DCFF;   /* foreground — bright specks */
+
+  /* === BORDERS & STROKES === */
+  --color-border:        rgba(37, 45, 61, 0.8);   /* default border */
+  --color-border-accent: rgba(77, 175, 255, 0.3); /* glowing border on hover */
+}
+
+---
+
+### Migration map — find and replace these exact values
+
+Current → New:
+
+  #000000 or #000            → var(--color-bg-primary)
+  #111111 or #0a0a0a         → var(--color-bg-primary)
+  #39FF14 (neon green)       → var(--color-accent)
+  rgba(57,255,20,*)          → use --color-accent with matching opacity
+  #ffffff body text          → var(--color-text-body)
+  rgba(255,255,255,0.65)     → var(--color-text-body)
+  rgba(255,255,255,0.45)     → var(--color-text-muted)
+  rgba(255,255,255,0.3)      → var(--color-text-muted)
+  white particle color       → #3A8FD4 (mid) and #B8DCFF (fg) in Three.js
+
+  H1/H2 text: KEEP #ffffff — display headings stay pure white
+  "Digital" outlined text stroke: change from white to 
+    -webkit-text-stroke: 1.5px rgba(77,175,255,0.4)
+    (blue ghost instead of white ghost)
+
+---
+
+### Component-specific changes
+
+Eyebrow label:
+  color: var(--color-text-muted)
+  letter-spacing stays the same
+
+Primary CTA button:
+  border: 1.5px solid var(--color-accent)
+  color: var(--color-accent)
+  on hover: background: var(--color-accent), color: #0A0D12
+  (dark text on bright blue — not black on neon green)
+
+Secondary CTA link:
+  color: var(--color-text-muted)
+  on hover: color: var(--color-accent)
+
+SCROLL indicator:
+  color: var(--color-text-muted)
+  line color: var(--color-border-accent)
+
+Year "2026" marker:
+  color: var(--color-text-muted)
+
+Particle canvas background clear color:
+  renderer.setClearColor(0x0A0D12, 1)
+  (replaces 0x000000)
+
+Particle colors in Three.js PointsMaterial:
+  Layer 1 (bg):    color: 0x2A5F9E, opacity: 0.3
+  Layer 2 (mid):   color: 0x3A8FD4, opacity: 0.6
+  Layer 3 (fg):    color: 0xB8DCFF, opacity: 0.9
+
+---
+
+### What NOT to do
+
+- Do not add any green anywhere — zero green after migration
+- Do not use #ffffff for body text — only headings
+- Do not add gradients
+- Do not change the font sizes, layout, or spacing — palette only
+- Do not introduce any warm tones (orange, yellow, red) — 
+  this palette is cold-spectrum only
+
+---
+
+### Deliverable
+
+Updated styles.scss with :root block at the top, and all 
+component SCSS files with the migrated values. Show every 
+file that changes.
