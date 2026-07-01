@@ -1,0 +1,287 @@
+I have an Angular landing page. The current header is a static green 
+bar (corporate green, part of Fidelity/CST brand standards) that looks 
+completely disconnected from the dark hero below it.
+
+Redesign the header component with Mammut-style scroll behavior:
+- At page top: header is fully transparent, floats over the hero
+- On scroll: header slides down from above with a dark frosted background
+- Corporate green is RETAINED but used minimally as an accent only — 
+  NOT as the background color
+
+No external libraries. Vanilla TypeScript + CSS only.
+Complete implementation — no stubs, no TODOs.
+
+---
+
+### The exact scroll behavior (Mammut pattern)
+
+State 1 — AT TOP (scroll position = 0):
+  - Header background: transparent
+  - Header position: fixed, top: 0
+  - Logo text color: #ffffff
+  - Nav links color: rgba(255,255,255,0.75)
+  - No border, no shadow
+  - The hero content is fully visible beneath it
+
+State 2 — SCROLLED (scroll position > 60px):
+  - Header slides in: 
+      transform: translateY(-100%) → translateY(0)
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)
+      (this is the "slide down from above" feel — ease out expo curve)
+  - Background: rgba(10, 13, 18, 0.92)
+  - backdrop-filter: blur(12px) saturate(1.4)
+    (frosted glass over the page content below)
+  - Border-bottom: 1px solid rgba(255,255,255,0.06)
+  - Logo and nav text: #ffffff (full opacity)
+
+State 3 — SCROLLING BACK UP to top:
+  - When scroll returns below 60px, background fades back to transparent
+  - transition: background 0.3s ease, backdrop-filter 0.3s ease
+  - Do NOT slide out again — only the background fades, header stays fixed
+
+---
+
+### HTML structure
+
+<header class="site-header" [class.scrolled]="isScrolled">
+  <div class="header-inner">
+
+    <!-- Left: Brand identity -->
+    <div class="header-brand">
+      <div class="brand-badge">CST</div>
+      <div class="brand-text">
+        <span class="brand-name">Corporate Services Technology</span>
+        <span class="brand-divider">|</span>
+        <span class="brand-product">Digital Journey</span>
+      </div>
+    </div>
+
+    <!-- Right: Nav -->
+    <nav class="header-nav" aria-label="Main navigation">
+      <a href="#overview" class="nav-link">Overview</a>
+      <a href="#systems" class="nav-link">Systems</a>
+      <a href="#journey" class="nav-link">Journey</a>
+      <a href="#explore" class="nav-link">Explore</a>
+      <a href="#explore" class="nav-cta">See the full picture →</a>
+    </nav>
+
+  </div>
+</header>
+
+---
+
+### SCSS — complete
+
+/* === CSS CUSTOM PROPERTIES (add to :root if not already present) === */
+:root {
+  --header-height: 60px;
+  --corporate-green: #00873C;   /* Fidelity/CST brand green — use ONLY for accents */
+  --color-bg-primary: #0A0D12;
+}
+
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: var(--header-height);
+
+  /* Default state: transparent */
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  backdrop-filter: blur(0px);
+
+  /* Smooth transitions for all properties */
+  transition:
+    background 0.35s ease,
+    border-color 0.35s ease,
+    backdrop-filter 0.35s ease,
+    box-shadow 0.35s ease;
+
+  /* Slide animation — starts off-screen */
+  transform: translateY(-100%);
+  animation: header-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+  /* 0.3s delay — lets the hero load before header appears */
+}
+
+@keyframes header-enter {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+/* === SCROLLED STATE — class added by TypeScript === */
+.site-header.scrolled {
+  background: rgba(10, 13, 18, 0.92);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: 0 1px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* === INNER LAYOUT === */
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 6vw;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* === BRAND SECTION === */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brand-badge {
+  width: 32px;
+  height: 32px;
+  background: var(--corporate-green);   /* GREEN lives HERE only — the badge */
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.brand-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.brand-divider {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+  font-weight: 300;
+}
+
+.brand-product {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* === NAV LINKS === */
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.nav-link {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* CTA nav button — the only other place corporate green appears */
+.nav-cta {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--corporate-green);
+  text-decoration: none;
+  letter-spacing: 0.06em;
+  border: 1px solid rgba(0, 135, 60, 0.5);
+  padding: 0.5rem 1.1rem;
+  border-radius: 2px;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background: var(--corporate-green);
+    color: #ffffff;
+  }
+}
+
+---
+
+### TypeScript — scroll listener
+
+In your header component or app component:
+
+  isScrolled = false;
+  private scrollThreshold = 60;
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    this.isScrolled = window.scrollY > this.scrollThreshold;
+  }
+
+That's it. No requestAnimationFrame needed — the CSS transition 
+handles the smoothness.
+
+---
+
+### Add padding to hero so content isn't hidden behind fixed header
+
+In your hero section SCSS:
+  padding-top: var(--header-height);   /* = 60px */
+
+Or if the hero is full-viewport and header should overlap it:
+  /* Do NOT add padding — the transparent header floats over it */
+  /* This is the Mammut approach — hero goes edge to edge */
+
+For your layout, since the header starts transparent over the 
+hero, do NOT add padding-top to the hero — let it be full height.
+Add padding-top to the SECOND section (stats, cards, etc.) instead
+to account for the fixed header height.
+
+---
+
+### Corporate green usage rules — enforce these
+
+The green (#00873C or your exact brand hex) appears in EXACTLY 
+two places:
+  1. The CST badge square (always visible, brand anchor)
+  2. The "See the full picture →" nav CTA button border/hover
+
+NOWHERE ELSE in the header. Not as background, not as text color 
+on nav links, not as the header bar color. The header background 
+is dark (rgba(10,13,18,0.92)) when scrolled.
+
+This preserves brand compliance while not making the header look 
+like a green toolbar slapped on a dark page.
+
+---
+
+### Deliverable
+
+Complete header component:
+1. header.component.html — full template
+2. header.component.scss — full styles including :root additions
+3. header.component.ts — with @HostListener scroll logic
+
+If the header is currently in app.component, refactor it into its 
+own HeaderComponent and show the updated app.component.html.
