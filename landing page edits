@@ -1,0 +1,968 @@
+I have an Angular application with these routes/pages:
+  - Landing page (app-landing or home component)
+  - Persona page (persona/lens component)  
+  - Ecosystem page (ecosystem component)
+  - Loader screen (already implemented, do not touch)
+
+Implement ALL of the following changes completely.
+No stubs. No TODOs. No placeholders.
+
+════════════════════════════════════════════════════
+SECTION 1 — GLOBAL SHELL (app.component)
+Affects: ALL pages — landing, persona, ecosystem
+════════════════════════════════════════════════════
+
+### 1A — Remove all headers globally
+
+In app.component.html:
+- Delete <app-header>, <header>, mat-toolbar, or ANY 
+  top navigation element completely
+- Remove HeaderComponent from app.module.ts declarations 
+  and imports
+- Delete header.component.ts/html/scss files entirely
+  or keep files but empty them completely
+
+In app.component.ts:
+- Remove isScrolled, headerVisible, onScroll(), 
+  showHeader() and any scroll listener
+- Remove @HostListener('window:scroll') if present
+
+In all page component SCSS files (landing, persona, ecosystem):
+- Remove any padding-top or margin-top that was added 
+  to compensate for a fixed header
+- Pages start at top: 0 with zero offset
+
+No navigation chrome of any kind on any page.
+
+---
+
+### 1B — Global background color
+
+In styles.scss (global):
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #040C0A;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Prevent white flash on route change */
+  router-outlet + * {
+    background: transparent;
+  }
+
+---
+
+### 1C — Global background component
+
+Create a NEW standalone component: BackgroundComponent
+  selector: 'app-background'
+  
+This component renders the gradient layer + Three.js canvas
+and is placed ONCE in app.component.html, beneath the 
+router-outlet. It is always visible on every page.
+
+app.component.html structure:
+  <app-background></app-background>
+  <app-loader *ngIf="showLoader"></app-loader>
+  <div class="page-wrapper">
+    <router-outlet></router-outlet>
+  </div>
+
+.page-wrapper in app.component.scss:
+  .page-wrapper {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+  }
+
+---
+
+### 1D — BackgroundComponent HTML
+
+background.component.html:
+
+<div class="bg-gradient-layer">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+<canvas #bgCanvas class="bg-canvas"></canvas>
+
+---
+
+### 1E — BackgroundComponent SCSS
+
+background.component.scss:
+
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+.bg-gradient-layer {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 60% 75% at 18% 52%,
+      rgba(0, 140, 100, 0.22) 0%,
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 28% 38% at 18% 52%,
+      rgba(0, 180, 120, 0.10) 0%,
+      transparent 42%
+    ),
+    radial-gradient(
+      ellipse 75% 55% at 50% 115%,
+      rgba(0, 80, 60, 0.14) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 40% 40% at 85% 20%,
+      rgba(0, 60, 80, 0.06) 0%,
+      transparent 50%
+    ),
+    #040C0A;
+}
+
+/* Atmospheric orbs — soft glow blobs */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  transition: transform 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.orb-1 {
+  width: 700px;
+  height: 700px;
+  left: -150px;
+  top: 50%;
+  transform: translateY(-50%) 
+    translate(var(--ox1, 0px), var(--oy1, 0px));
+  background: radial-gradient(
+    circle,
+    rgba(0, 160, 110, 0.07) 0%,
+    transparent 70%
+  );
+  filter: blur(60px);
+}
+
+.orb-2 {
+  width: 420px;
+  height: 420px;
+  left: 220px;
+  top: 28%;
+  transform: translate(
+    var(--ox2, 0px),
+    var(--oy2, 0px)
+  );
+  background: radial-gradient(
+    circle,
+    rgba(0, 200, 140, 0.045) 0%,
+    transparent 65%
+  );
+  filter: blur(70px);
+}
+
+.orb-3 {
+  width: 300px;
+  height: 300px;
+  right: 10%;
+  top: 60%;
+  transform: translate(
+    var(--ox3, 0px),
+    var(--oy3, 0px)
+  );
+  background: radial-gradient(
+    circle,
+    rgba(0, 100, 120, 0.04) 0%,
+    transparent 60%
+  );
+  filter: blur(50px);
+}
+
+.bg-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+---
+
+### 1F — BackgroundComponent TypeScript — COMPLETE
+
+background.component.ts:
+
+import {
+  Component, OnInit, OnDestroy,
+  AfterViewInit, ViewChild, ElementRef,
+  HostListener
+} from '@angular/core';
+import * as THREE from 'three';
+
+@Component({
+  selector: 'app-background',
+  templateUrl: './background.component.html',
+  styleUrls: ['./background.component.scss']
+})
+export class BackgroundComponent implements AfterViewInit, OnDestroy {
+
+  @ViewChild('bgCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+
+  private renderer!: THREE.WebGLRenderer;
+  private scene!: THREE.Scene;
+  private camera!: THREE.PerspectiveCamera;
+  private animationId!: number;
+
+  private layer1!: THREE.Points;
+  private layer2!: THREE.Points;
+  private layer3!: THREE.Points;
+
+  private targetX = 0;
+  private targetY = 0;
+
+  private gradientEl!: HTMLElement;
+
+  ngAfterViewInit(): void {
+    this.initThree();
+    this.gradientEl = document.querySelector(
+      '.bg-gradient-layer'
+    ) as HTMLElement;
+  }
+
+  /* ── THREE.JS INIT ── */
+  private initThree(): void {
+    const canvas = this.canvasRef.nativeElement;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    /* Renderer */
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: false,
+      antialias: false,
+    });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(W, H);
+    this.renderer.setClearColor(0x040C0A, 1);
+
+    /* Scene */
+    this.scene = new THREE.Scene();
+
+    /* Camera */
+    this.camera = new THREE.PerspectiveCamera(60, W / H, 1, 3000);
+    this.camera.position.z = 800;
+
+    /* Build 3 particle layers */
+    this.layer1 = this.makeLayer(1200, 4000, 600, 800,
+      0x004D3A, 0.8, 0.25);
+    this.layer2 = this.makeLayer(600,  3000, 400, 200,
+      0x00A878, 1.4, 0.45);
+    this.layer3 = this.makeLayer(180,  2000, 200, 0,
+      0x00C896, 2.2, 0.65);
+
+    this.scene.add(this.layer1, this.layer2, this.layer3);
+
+    /* Start loop */
+    this.animate();
+  }
+
+  private makeLayer(
+    count: number,
+    spread: number,
+    zSpread: number,
+    zOffset: number,
+    color: number,
+    size: number,
+    opacity: number
+  ): THREE.Points {
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+      pos[i * 3]     = (Math.random() - 0.5) * spread;
+      pos[i * 3 + 1] = (Math.random() - 0.5) * spread;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * zSpread - zOffset;
+    }
+
+    geo.setAttribute('position',
+      new THREE.BufferAttribute(pos, 3));
+
+    const mat = new THREE.PointsMaterial({
+      color,
+      size,
+      transparent: true,
+      opacity,
+      sizeAttenuation: true,
+      depthWrite: false,
+    });
+
+    return new THREE.Points(geo, mat);
+  }
+
+  /* ── ANIMATION LOOP ── */
+  private animate(): void {
+    this.animationId = requestAnimationFrame(() => this.animate());
+
+    /* Rotate layers at different speeds */
+    this.layer1.rotation.y += 0.00015;
+    this.layer1.rotation.x += 0.00005;
+
+    this.layer2.rotation.y += 0.00022;
+    this.layer2.rotation.x += 0.00008;
+
+    this.layer3.rotation.y += 0.00028;
+    this.layer3.rotation.x += 0.00010;
+
+    /* Smooth camera follow mouse */
+    this.camera.position.x +=
+      (this.targetX - this.camera.position.x) * 0.04;
+    this.camera.position.y +=
+      (this.targetY - this.camera.position.y) * 0.04;
+    this.camera.lookAt(this.scene.position);
+
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  /* ── MOUSE PARALLAX ── */
+  @HostListener('window:mousemove', ['$event'])
+  onMouseMove(e: MouseEvent): void {
+    const xN = e.clientX / window.innerWidth  - 0.5;
+    const yN = e.clientY / window.innerHeight - 0.5;
+
+    /* Camera target */
+    this.targetX = xN * 55;
+    this.targetY = -yN * 55;
+
+    /* Orb parallax via CSS custom properties */
+    if (this.gradientEl) {
+      this.gradientEl.style.setProperty(
+        '--ox1', `${(xN * 30).toFixed(1)}px`);
+      this.gradientEl.style.setProperty(
+        '--oy1', `${(yN * 20).toFixed(1)}px`);
+      this.gradientEl.style.setProperty(
+        '--ox2', `${(xN * 50).toFixed(1)}px`);
+      this.gradientEl.style.setProperty(
+        '--oy2', `${(yN * 35).toFixed(1)}px`);
+      this.gradientEl.style.setProperty(
+        '--ox3', `${(xN * -25).toFixed(1)}px`);
+      this.gradientEl.style.setProperty(
+        '--oy3', `${(yN * -18).toFixed(1)}px`);
+    }
+  }
+
+  /* ── RESIZE ── */
+  @HostListener('window:resize')
+  onResize(): void {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    this.camera.aspect = W / H;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(W, H);
+  }
+
+  /* ── CLEANUP ── */
+  ngOnDestroy(): void {
+    cancelAnimationFrame(this.animationId);
+    this.renderer.dispose();
+    [this.layer1, this.layer2, this.layer3].forEach(l => {
+      (l.geometry as THREE.BufferGeometry).dispose();
+      (l.material as THREE.PointsMaterial).dispose();
+    });
+  }
+}
+
+════════════════════════════════════════════════════
+SECTION 2 — LANDING PAGE COMPONENT
+Affects: landing/home page only
+════════════════════════════════════════════════════
+
+### 2A — CSS custom properties for this palette
+
+In landing.component.scss add at top:
+
+:host {
+  --accent:        #00C896;
+  --accent-dim:    rgba(0, 200, 140, 0.28);
+  --accent-border: rgba(0, 200, 140, 0.35);
+  --text-primary:  #ffffff;
+  --text-body:     rgba(190, 225, 215, 0.55);
+  --text-muted:    rgba(255, 255, 255, 0.25);
+}
+
+---
+
+### 2B — Hero section HTML — complete
+
+Replace existing hero HTML entirely with:
+
+<section class="hero-section" #heroSection>
+  <div class="hero-content">
+
+    <p id="hero-eyebrow" class="hero-eyebrow">
+      <span class="eyebrow-line"></span>
+      Somewhere between your offer letter and your farewell lunch
+    </p>
+
+    <h1 class="hero-heading">
+      <span id="hero-line-1" class="h-line h-solid">A lot</span>
+      <span id="hero-line-2" class="h-line h-ghost">quietly</span>
+      <span id="hero-line-3" class="h-line h-accent">happened.</span>
+    </h1>
+
+    <p id="hero-body" class="hero-body">
+      Thirteen systems. Six phases. One connected experience. 
+      Most people never see the infrastructure that made their 
+      workday possible. Now you can.
+    </p>
+
+    <div id="hero-ctas" class="hero-ctas">
+      <a href="#explore" class="cta-primary">
+        See what runs beneath →
+      </a>
+      <a href="#lens" class="cta-secondary">
+        Choose your perspective
+      </a>
+    </div>
+
+  </div>
+
+  <!-- Edge anchors -->
+  <span class="edge-year">2026</span>
+  <span class="edge-fmr">FMR India</span>
+
+  <!-- Scroll indicator -->
+  <div class="scroll-indicator">
+    <span class="scroll-text">SCROLL</span>
+    <div class="scroll-line"></div>
+  </div>
+
+</section>
+
+---
+
+### 2C — Hero SCSS — complete
+
+.hero-section {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  visibility: hidden;   /* hidden until loaderComplete */
+  background: transparent;
+}
+
+.hero-content {
+  position: absolute;
+  top: 38vh;
+  left: 0;
+  right: 0;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 6vw;
+}
+
+/* All elements start blurred — JS reveals them */
+.hero-eyebrow,
+.h-line,
+.hero-body {
+  opacity: 0;
+  filter: blur(24px);
+  will-change: opacity, filter;
+}
+
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 2.5rem;
+}
+
+.eyebrow-line {
+  display: inline-block;
+  width: 40px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.hero-heading {
+  display: flex;
+  flex-direction: column;   /* THREE separate lines — mandatory */
+  gap: 0;
+  margin-bottom: 2.5rem;
+  line-height: 0.92;
+}
+
+.h-line {
+  display: block;
+  font-family: 'Syne', sans-serif;
+  letter-spacing: -0.03em;
+}
+
+/* "A lot" — biggest, white, dominates */
+.h-solid {
+  font-size: clamp(5.5rem, 12vw, 11rem);
+  font-weight: 800;
+  color: #ffffff;
+}
+
+/* "quietly" — medium, ghost outline, indented */
+.h-ghost {
+  font-size: clamp(3rem, 6.5vw, 6rem);
+  font-weight: 700;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--accent-dim);
+  letter-spacing: 0.07em;
+  margin-left: 10%;
+}
+
+/* "happened." — punches back, full accent teal */
+.h-accent {
+  font-size: clamp(4.5rem, 10vw, 9rem);
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.hero-body {
+  max-width: 480px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: clamp(0.88rem, 1.4vw, 1.05rem);
+  color: var(--text-body);
+  line-height: 1.75;
+  margin-bottom: 2.5rem;
+}
+
+/* CTAs start hidden + shifted down */
+.hero-ctas {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  opacity: 0;
+  transform: translateY(14px);
+  will-change: opacity, transform;
+}
+
+.cta-primary {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  border: 1px solid var(--accent-border);
+  padding: 0.85rem 2rem;
+  border-radius: 2px;
+  transition: background 0.25s ease, color 0.25s ease;
+
+  &:hover {
+    background: var(--accent);
+    color: #040C0A;
+  }
+}
+
+.cta-secondary {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.35);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+}
+
+/* Edge anchors */
+.edge-year {
+  position: absolute;
+  top: 1.5rem;
+  right: 6vw;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.58rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.15);
+}
+
+.edge-fmr {
+  position: absolute;
+  bottom: 3rem;
+  left: 6vw;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.55rem;
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.1);
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+/* Scroll indicator */
+.scroll-indicator {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.scroll-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.52rem;
+  letter-spacing: 0.24em;
+  color: rgba(255, 255, 255, 0.15);
+  text-transform: uppercase;
+}
+
+.scroll-line {
+  width: 1px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -100%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--accent);
+    opacity: 0.4;
+    animation: scroll-drop 2s ease-in-out infinite;
+  }
+}
+
+@keyframes scroll-drop {
+  0%   { top: -100%; }
+  100% { top: 100%; }
+}
+
+---
+
+### 2D — Stats section — rewrite labels only
+
+Find the stats/counter section. Change ONLY the label text
+beneath each number. Do not touch the counter animation logic.
+
+  13+  → label: "Systems running without applause"
+  3    → label: "Perspectives, one shared story"
+  6    → label: "Phases from hello to farewell"
+  1    → label: "Experience, finally visible"
+
+Change ALL stat number colors to var(--accent) → #00C896
+Remove any individual colors (green, blue, orange, purple)
+Every number must be the same single teal color.
+
+---
+
+### 2E — Two cards section — rewrite copy only
+
+Card 1 (Your Lens):
+  eyebrow:  "Explore by"
+  title:    "Your Lens"
+  body:     "Step into a role. See exactly which tools made 
+             someone's Tuesday possible — whether they're just 
+             joining, managing a team, or somewhere in between."
+  cta link: "Pick your perspective →"
+
+Card 2 (The Ecosystem):
+  eyebrow:  "Explore by"
+  title:    "The Ecosystem"
+  body:     "Every system, every phase, every handoff. The full 
+             map of how thirteen moving parts conspire to make 
+             the associate experience feel effortless."
+  cta link: "See the whole picture →"
+
+Section heading above cards:
+  Current: "Two ways to discover it"
+  Keep this — it's clean. Only change subtitle below it:
+  New subtitle: "Same platform. Different entry points."
+
+---
+
+### 2F — Landing page TypeScript — blur reveal
+
+In landing.component.ts, add:
+
+  private heroRevealed = false;
+
+  ngAfterViewInit(): void {
+    document.addEventListener('loaderComplete', () => {
+      if (this.heroRevealed) return;
+      this.heroRevealed = true;
+
+      const hero = document.querySelector(
+        '.hero-section') as HTMLElement;
+      if (hero) hero.style.visibility = 'visible';
+
+      this.revealHero();
+    });
+  }
+
+  private revealHero(): void {
+    this.reveal('hero-eyebrow',  0,    700);
+    this.reveal('hero-line-1',   350,  850);
+    this.reveal('hero-line-2',   750,  850);
+    this.reveal('hero-line-3',   1100, 950);
+    this.reveal('hero-body',     1600, 650);
+    setTimeout(() => this.revealCTAs(), 2000);
+  }
+
+  private reveal(id: string, delay: number, dur: number): void {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.style.transition =
+        `opacity ${dur}ms ease, filter ${dur}ms ease`;
+      el.style.opacity = '1';
+      el.style.filter  = 'blur(0px)';
+    }, delay);
+  }
+
+  private revealCTAs(): void {
+    const el = document.getElementById('hero-ctas');
+    if (!el) return;
+    el.style.transition =
+      'opacity 650ms ease, ' +
+      'transform 650ms cubic-bezier(0.16, 1, 0.3, 1)';
+    el.style.opacity   = '1';
+    el.style.transform = 'translateY(0)';
+  }
+
+════════════════════════════════════════════════════
+SECTION 3 — PERSONA PAGE
+Affects: persona/lens page only
+════════════════════════════════════════════════════
+
+### 3A — Page shell SCSS
+
+persona.component.scss:
+
+:host {
+  display: block;
+  min-height: 100vh;
+  background: transparent;  /* background comes from app-background */
+  padding: 6rem 6vw 4rem;   /* top padding replaces old header offset */
+}
+
+/* All cards/panels on this page */
+.persona-card, .role-card, .panel {
+  background: rgba(4, 12, 10, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 200, 140, 0.1);
+  border-radius: 8px;
+}
+
+/* Any accent elements */
+.accent, .active, .selected {
+  color: #00C896;
+  border-color: rgba(0, 200, 140, 0.4);
+}
+
+/* Page heading */
+h1, h2 {
+  color: #ffffff;
+  font-family: 'Syne', sans-serif;
+}
+
+p, li, span {
+  color: rgba(190, 225, 215, 0.6);
+}
+
+════════════════════════════════════════════════════
+SECTION 4 — ECOSYSTEM PAGE
+Affects: ecosystem page only
+════════════════════════════════════════════════════
+
+### 4A — Page shell SCSS
+
+ecosystem.component.scss:
+
+:host {
+  display: block;
+  min-height: 100vh;
+  background: transparent;
+  padding: 6rem 6vw 4rem;
+}
+
+/* Phase chips/tags */
+.phase-chip, .phase-tag {
+  background: rgba(0, 200, 140, 0.08);
+  border: 1px solid rgba(0, 200, 140, 0.2);
+  color: #00C896;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+}
+
+.phase-chip.active, .phase-tag.active {
+  background: #00C896;
+  color: #040C0A;
+  border-color: #00C896;
+}
+
+/* System node cards */
+.system-card, .node-card {
+  background: rgba(4, 12, 10, 0.65);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 200, 140, 0.08);
+  border-radius: 6px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    border-color: rgba(0, 200, 140, 0.25);
+    background: rgba(4, 12, 10, 0.85);
+  }
+}
+
+/* Section headings */
+h1, h2, h3 {
+  color: #ffffff;
+  font-family: 'Syne', sans-serif;
+}
+
+p, li {
+  color: rgba(190, 225, 215, 0.55);
+}
+
+/* Connecting lines between nodes */
+.connector-line {
+  stroke: rgba(0, 200, 140, 0.15);
+}
+
+════════════════════════════════════════════════════
+SECTION 5 — GLOBAL TYPOGRAPHY TOKENS
+Affects: ALL pages via styles.scss
+════════════════════════════════════════════════════
+
+Add to styles.scss:
+
+:root {
+  /* Colors */
+  --dj-bg:           #040C0A;
+  --dj-accent:       #00C896;
+  --dj-accent-dim:   rgba(0, 200, 140, 0.28);
+  --dj-accent-border:rgba(0, 200, 140, 0.35);
+  --dj-text-primary: #ffffff;
+  --dj-text-body:    rgba(190, 225, 215, 0.55);
+  --dj-text-muted:   rgba(255, 255, 255, 0.25);
+  --dj-surface:      rgba(4, 12, 10, 0.7);
+  --dj-border:       rgba(0, 200, 140, 0.1);
+  --dj-green-badge:  #00873C;   /* CST brand — badge only */
+}
+
+/* Replace ALL existing green/neon values globally */
+/* Find and replace: */
+  #39FF14  → #00C896
+  #00ff00  → #00C896
+  #39ff14  → #00C896
+  neon green anywhere → #00C896
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #040C0A; }
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 200, 140, 0.2);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 200, 140, 0.4);
+}
+
+════════════════════════════════════════════════════
+SECTION 6 — RULES — DO NOT VIOLATE ANY OF THESE
+════════════════════════════════════════════════════
+
+1. app-background renders ONCE in app.component — never 
+   inside individual page components. Adding it inside 
+   landing, persona, or ecosystem will create duplicate 
+   canvases and kill performance.
+
+2. All page components have background: transparent — 
+   the global canvas shows through everything.
+
+3. Three.js canvas z-index: 1 — always below page content 
+   which is z-index: 10+. If content disappears, check 
+   z-index stacking.
+
+4. The loaderComplete event is the ONLY trigger for the 
+   hero reveal. Never use ngOnInit or a hardcoded timeout 
+   as the trigger.
+
+5. hero-section starts with visibility: hidden — not 
+   opacity: 0. Opacity 0 still takes up space and can 
+   interfere with the loader. Visibility hidden removes 
+   it from paint entirely.
+
+6. #00C896 is the ONLY accent color used anywhere across 
+   all three pages. No orange, no purple, no multi-color 
+   stats. One color, everywhere.
+
+7. CST badge green (#00873C) appears ONLY on the badge 
+   square. It is NOT used as text color, CTA color, 
+   or accent anywhere.
+
+8. "A lot / quietly / happened." must be on THREE separate 
+   lines using flex-direction: column on .hero-heading. 
+   Do not let the browser collapse them onto one line.
+
+9. font-family 'Syne' for all headings, 'Inter' for all 
+   body text. If these fonts are not already imported, 
+   add to index.html:
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link href="https://fonts.googleapis.com/css2?
+     family=Syne:wght@700;800&
+     family=Inter:wght@300;400;500&
+     display=swap" rel="stylesheet">
+
+10. ngOnDestroy in BackgroundComponent must cancel the 
+    animation frame and dispose all Three.js objects. 
+    Missing this will cause memory leaks on route changes.
+
+════════════════════════════════════════════════════
+DELIVERABLE — show ALL of these files completely
+════════════════════════════════════════════════════
+
+1.  app.component.html
+2.  app.component.ts
+3.  app.component.scss
+4.  background.component.html
+5.  background.component.ts
+6.  background.component.scss
+7.  landing.component.html  (hero section)
+8.  landing.component.ts    (reveal logic)
+9.  landing.component.scss  (hero + stats + cards)
+10. persona.component.scss  (shell only)
+11. ecosystem.component.scss (shell only)
+12. styles.scss             (global tokens + fonts)
+13. app.module.ts           (BackgroundComponent declared,
+                             HeaderComponent removed)
