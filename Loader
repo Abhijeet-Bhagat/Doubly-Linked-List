@@ -1,0 +1,372 @@
+I have an Angular application. Before the main landing page loads, 
+show a fullscreen loading screen inspired by the REFIRE site loader. 
+It covers the entire viewport, runs a fake progress animation from 
+0% to 100%, then fades out and reveals the landing page beneath.
+
+No external libraries. Complete implementation — no stubs, no TODOs.
+
+---
+
+### Visual anatomy — implement exactly
+
+BLACK background: #0A0D12 (not pure #000)
+
+Element 1 — THE LINE (horizontal, vertically centered at 48vh)
+  - A single <div> 1px tall, full viewport width
+  - Color: rgba(255, 255, 255, 0.25) — the track (full width, always visible)
+  - Position: absolute, top: 48vh, left: 0, width: 100%
+
+Element 2 — THE DOT (progress indicator on the line)
+  - A circle, 10px × 10px
+  - Color: rgba(255, 255, 255, 0.55)
+  - border-radius: 50%
+  - Position: absolute, top: calc(48vh - 4px) [centered on line]
+  - left: starts at 0%, moves to match progress percentage
+  - Transition: left 0.08s linear (follows progress smoothly)
+
+Element 3 — THE PERCENTAGE (large, right-aligned)
+  - Position: absolute, right: 6vw, top: calc(48vh - 2.5rem)
+  - Font: 'Syne', weight 300 (thin — not bold)
+  - Font size: clamp(2.5rem, 6vw, 4.5rem)
+  - Color: #ffffff
+  - Letter-spacing: -0.02em
+  - Content: "68%" — number updates every frame via TypeScript
+  - No animation on the number itself — it just counts
+
+Element 4 — TEXT ABOVE THE LINE (the hero message)
+  - Position: absolute, top: calc(48vh - 5rem)
+  - Left: 6vw
+  - Content: "Most people never see what makes their work day possible."
+  - Font: 'Inter', weight 300, size: clamp(0.7rem, 1.4vw, 0.95rem)
+  - Color: rgba(255, 255, 255, 0.45)
+  - Letter-spacing: 0.12em
+  - Text-transform: uppercase
+  - This text is STATIC — does not animate, always visible
+
+Element 5 — BOTTOM LEFT label
+  - Position: absolute, bottom: 2rem, left: 6vw
+  - Content: "INITIALIZING.." 
+  - But implement as animated: the dots cycle — "INITIALIZING." → 
+    "INITIALIZING.." → "INITIALIZING..." → repeat every 500ms
+  - Font: Inter 300, 0.6rem, letter-spacing: 0.2em
+  - Color: rgba(255,255,255,0.35)
+
+Element 6 — BOTTOM CENTER label
+  - Position: absolute, bottom: 2rem, left: 50%, transform: translateX(-50%)
+  - Content: "DIGITAL JOURNEY — FMR INDIA"
+  - Font: Inter 300, 0.6rem, letter-spacing: 0.2em
+  - Color: rgba(255,255,255,0.25)
+
+Element 7 — BOTTOM RIGHT label
+  - Position: absolute, bottom: 2rem, right: 6vw
+  - Content: "EMPLOYEE EXPERIENCE PLATFORM"
+  - Font: Inter 300, 0.6rem, letter-spacing: 0.2em
+  - Color: rgba(255,255,255,0.25)
+
+---
+
+### Progress animation — exact behavior
+
+The loader runs a fake progress from 0 to 100 over ~3.2 seconds.
+It does NOT move linearly — it eases:
+
+  0% → 60%  :  fast  (0.8s) — feels like it's loading quickly
+  60% → 85% :  slow  (1.4s) — deliberate pause, builds tension
+  85% → 100%:  fast  (1.0s) — snaps to completion
+
+Implement this with a custom easing function:
+
+  private progress = 0;
+  private animationId!: number;
+
+  private startLoader(): void {
+    const startTime = performance.now();
+    const totalDuration = 3200;
+
+    const easeProgress = (t: number): number => {
+      // Custom three-phase easing
+      if (t < 0.25) {
+        // Phase 1: fast (0 → 60%)
+        return (t / 0.25) * 0.60;
+      } else if (t < 0.69) {
+        // Phase 2: slow (60% → 85%)
+        return 0.60 + ((t - 0.25) / 0.44) * 0.25;
+      } else {
+        // Phase 3: fast (85% → 100%)
+        return 0.85 + ((t - 0.69) / 0.31) * 0.15;
+      }
+    };
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / totalDuration, 1);
+      this.progress = Math.floor(easeProgress(t) * 100);
+      
+      this.updateLoaderDOM();
+      
+      if (t < 1) {
+        this.animationId = requestAnimationFrame(tick);
+      } else {
+        this.progress = 100;
+        this.updateLoaderDOM();
+        // Wait 400ms at 100% then exit
+        setTimeout(() => this.exitLoader(), 400);
+      }
+    };
+
+    this.animationId = requestAnimationFrame(tick);
+  }
+
+  private updateLoaderDOM(): void {
+    // Update percentage text
+    const pctEl = document.getElementById('loader-pct');
+    if (pctEl) pctEl.textContent = `${this.progress}%`;
+
+    // Update dot position
+    const dotEl = document.getElementById('loader-dot');
+    if (dotEl) {
+      // Dot travels from 5vw to 88vw (not edge to edge — leaves margins)
+      const startVw = 5;
+      const endVw = 88;
+      const pos = startVw + (this.progress / 100) * (endVw - startVw);
+      dotEl.style.left = `${pos}vw`;
+    }
+  }
+
+---
+
+### Exit animation — the reveal
+
+When progress hits 100% and the 400ms pause ends:
+
+  private exitLoader(): void {
+    const loader = document.getElementById('loader-screen');
+    if (!loader) return;
+
+    // 1. First: the line and all elements fade out (200ms)
+    const inner = loader.querySelector('.loader-inner') as HTMLElement;
+    if (inner) {
+      inner.style.transition = 'opacity 0.2s ease';
+      inner.style.opacity = '0';
+    }
+
+    // 2. Then: entire loader fades to transparent (500ms)
+    setTimeout(() => {
+      loader.style.transition = 'opacity 0.5s ease';
+      loader.style.opacity = '0';
+    }, 250);
+
+    // 3. Then: remove from DOM, trigger hero reveal
+    setTimeout(() => {
+      loader.style.display = 'none';
+      // Dispatch event so landing page component can start 
+      // its own entrance animations
+      document.dispatchEvent(new CustomEvent('loaderComplete'));
+    }, 800);
+  }
+
+---
+
+### Angular integration
+
+Create a standalone LoaderComponent:
+  selector: 'app-loader'
+  
+In app.component.html:
+  <app-loader *ngIf="showLoader"></app-loader>
+  <app-landing *ngIf="!showLoader || loaderExiting"></app-landing>
+
+In app.component.ts:
+  showLoader = true;
+  loaderExiting = false;
+
+  ngOnInit(): void {
+    document.addEventListener('loaderComplete', () => {
+      this.showLoader = false;
+    });
+  }
+
+In loader.component.ts:
+  ngAfterViewInit(): void {
+    this.startLoader();
+    this.startDotAnimation(); // for the "INITIALIZING.." cycling
+  }
+
+  ngOnDestroy(): void {
+    cancelAnimationFrame(this.animationId);
+    clearInterval(this.dotInterval);
+  }
+
+  private dotInterval!: ReturnType<typeof setInterval>;
+  private dotCount = 1;
+
+  private startDotAnimation(): void {
+    this.dotInterval = setInterval(() => {
+      this.dotCount = this.dotCount >= 3 ? 1 : this.dotCount + 1;
+      const el = document.getElementById('loader-initializing');
+      if (el) el.textContent = 'INITIALIZING' + '.'.repeat(this.dotCount);
+    }, 500);
+  }
+
+---
+
+### Landing page integration — listen for loader exit
+
+In landing-page.component.ts:
+
+  private heroRevealed = false;
+
+  ngAfterViewInit(): void {
+    document.addEventListener('loaderComplete', () => {
+      if (!this.heroRevealed) {
+        this.heroRevealed = true;
+        this.startHeroReveal(); // your blur-to-sharp animation starts HERE
+      }
+    });
+  }
+
+This ensures the hero blur reveal only starts AFTER the loader exits —
+never simultaneously. The two experiences are sequential, not overlapping.
+
+---
+
+### Loader HTML structure
+
+<div id="loader-screen" class="loader-screen">
+  <div class="loader-inner">
+
+    <!-- Line track -->
+    <div class="loader-track"></div>
+
+    <!-- Progress dot -->
+    <div id="loader-dot" class="loader-dot"></div>
+
+    <!-- Text above line -->
+    <p class="loader-tagline">
+      Most people never see what makes their work day possible.
+    </p>
+
+    <!-- Percentage -->
+    <p id="loader-pct" class="loader-pct">0%</p>
+
+    <!-- Bottom labels -->
+    <div class="loader-bottom">
+      <span id="loader-initializing" class="loader-label">INITIALIZING.</span>
+      <span class="loader-label loader-label--center">DIGITAL JOURNEY — FMR INDIA</span>
+      <span class="loader-label">EMPLOYEE EXPERIENCE PLATFORM</span>
+    </div>
+
+  </div>
+</div>
+
+---
+
+### SCSS
+
+.loader-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #0A0D12;
+  overflow: hidden;
+}
+
+.loader-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.loader-track {
+  position: absolute;
+  top: 48vh;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.loader-dot {
+  position: absolute;
+  top: calc(48vh - 5px);
+  left: 5vw;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  transition: left 0.08s linear;
+}
+
+.loader-tagline {
+  position: absolute;
+  top: calc(48vh - 3.5rem);
+  left: 6vw;
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: clamp(0.65rem, 1.3vw, 0.9rem);
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.loader-pct {
+  position: absolute;
+  top: calc(48vh - 3rem);
+  right: 6vw;
+  font-family: 'Syne', sans-serif;
+  font-weight: 300;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  color: #ffffff;
+  letter-spacing: -0.03em;
+  margin: 0;
+  line-height: 1;
+}
+
+.loader-bottom {
+  position: absolute;
+  bottom: 2rem;
+  left: 6vw;
+  right: 6vw;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.loader-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.28);
+  text-transform: uppercase;
+}
+
+---
+
+### Rules — do not change these
+
+- The line (loader-track) is ALWAYS full width — it is the 
+  track/rail. Only the dot moves along it.
+- The dot does NOT leave a colored trail behind it — no 
+  fill animation on the track. The dot alone is the indicator.
+  This is what makes it feel premium vs a Bootstrap progress bar.
+- progress easing MUST use the 3-phase custom function —
+  the slow phase in the middle (60→85%) is what creates 
+  tension and makes 100% feel earned.
+- loader-pct font-weight MUST be 300 (thin) — heavier weights 
+  make the number look like a dashboard widget, not a cinematic loader.
+- exitLoader() sequence must be exactly:
+    inner fades (200ms) → loader fades (500ms) → DOM removed → 
+    loaderComplete event fires
+  Do not collapse these into one transition.
+
+---
+
+### Deliverable
+
+1. loader.component.ts — complete
+2. loader.component.html — complete  
+3. loader.component.scss — complete
+4. Updated app.component.html showing loader + landing integration
+5. Updated app.component.ts with showLoader flag and event listener
