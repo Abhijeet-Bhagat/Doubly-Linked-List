@@ -1,0 +1,429 @@
+I have two cards in my Angular landing page inside a section.
+I want a Mammut-style scroll-driven card entrance animation.
+
+CRITICAL MECHANIC — read this before implementing:
+This is NOT an IntersectionObserver trigger animation.
+This is a SCROLL-MAPPED animation — the card's translateX
+position is recalculated on every scroll event as a direct
+mathematical function of scrollY. The card moves WITH the
+scroll in real time, not just once when entering the viewport.
+
+No external libraries. No GSAP. Vanilla TypeScript + CSS only.
+Complete implementation. No stubs. No TODOs.
+
+════════════════════════════════════════════
+THE EXACT BEHAVIOR
+════════════════════════════════════════════
+
+Phase 1 — BEFORE section reaches viewport:
+  Card 1: translateX(-110vw)   ← fully off-screen left
+  Card 2: translateX(-110vw)   ← same, slight delay
+  Both cards invisible, off-screen left
+
+Phase 2 — ENTERING (section scrolls into view):
+  As user scrolls DOWN, cards slide RIGHT
+  into their resting position: translateX(0)
+  Card 2 lags behind Card 1 by ~80px (stagger)
+  This entrance covers a scroll distance of 300px
+
+Phase 3 — RESTING (section fully in view):
+  Both cards sit at translateX(0)
+  No movement while section is centered in viewport
+  This rest zone covers a scroll distance of 200px
+
+Phase 4 — EXITING (user scrolls further down):
+  As user scrolls DOWN further, cards slide RIGHT
+  off-screen: translateX(110vw)
+  Card 1 leads, Card 2 follows with ~80px stagger
+  Exit covers a scroll distance of 300px
+
+Phase 5 — REVERSE (user scrolls back UP):
+  Everything runs in exact reverse
+  Scroll up → cards come back from right → rest → 
+  continue back to off-screen left
+  The animation is perfectly bidirectional
+
+════════════════════════════════════════════
+HTML STRUCTURE
+════════════════════════════════════════════
+
+<section class="cards-section" #cardsSection>
+
+  <div class="cards-heading">
+    <h2 class="section-title">Two ways to discover it</h2>
+    <p class="section-sub">Same platform. Different entry points.</p>
+  </div>
+
+  <div class="cards-track">
+
+    <div class="card-wrap" #card1>
+      <div class="card">
+        <span class="card-eyebrow">Explore by</span>
+        <h3 class="card-title">Your Lens</h3>
+        <p class="card-body">
+          Step into a role. See exactly which tools made 
+          someone's Tuesday possible — whether they're just 
+          joining, managing a team, or somewhere in between.
+        </p>
+        <div class="card-footer">
+          <!-- role icons here if any -->
+          <a class="card-link" routerLink="/persona">
+            Pick your perspective →
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="or-divider">
+      <span class="or-text">OR</span>
+    </div>
+
+    <div class="card-wrap" #card2>
+      <div class="card">
+        <span class="card-eyebrow">Explore by</span>
+        <h3 class="card-title">The Ecosystem</h3>
+        <p class="card-body">
+          Every system, every phase, every handoff. The full 
+          map of how thirteen moving parts conspire to make 
+          the associate experience feel effortless.
+        </p>
+        <div class="card-footer">
+          <a class="card-link" routerLink="/ecosystem">
+            See the whole picture →
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</section>
+
+════════════════════════════════════════════
+SCSS
+════════════════════════════════════════════
+
+.cards-section {
+  position: relative;
+  min-height: 80vh;
+  padding: 8vh 6vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* overflow: visible — CRITICAL, do not add overflow:hidden
+     here or cards will be clipped off-screen */
+}
+
+/* Parent of cards-section or body must have overflow-x:hidden
+   to prevent horizontal scrollbar when cards are off-screen */
+/* Add to the page host or app root: */
+:host {
+  overflow-x: hidden;
+}
+
+.cards-heading {
+  text-align: center;
+  margin-bottom: 4rem;
+  /* heading does NOT animate — stays fixed */
+}
+
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.75rem;
+}
+
+.section-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: rgba(190, 225, 215, 0.45);
+  letter-spacing: 0.04em;
+}
+
+.cards-track {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  max-width: 1100px;
+  /* IMPORTANT: overflow visible so off-screen cards don't
+     create scrollbar — overflow-x:hidden is on the HOST */
+}
+
+.card-wrap {
+  flex: 1;
+  /* translateX is applied here by TypeScript every scroll frame */
+  will-change: transform;
+  /* NO transition here — movement is driven by scroll in real
+     time. A CSS transition would add lag and break the mechanic */
+}
+
+.card {
+  height: 100%;
+  background: rgba(4, 12, 10, 0.72);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 200, 140, 0.1);
+  border-radius: 8px;
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: border-color 0.3s ease;
+
+  &:hover {
+    border-color: rgba(0, 200, 140, 0.28);
+  }
+}
+
+.card-eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  color: rgba(0, 200, 140, 0.5);
+  text-transform: uppercase;
+}
+
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.card-body {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: rgba(190, 225, 215, 0.5);
+  line-height: 1.75;
+  flex: 1;
+}
+
+.card-footer {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.card-link {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #00C896;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+
+  &:hover { opacity: 0.75; }
+}
+
+.or-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.5rem;
+  flex-shrink: 0;
+}
+
+.or-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.18);
+  letter-spacing: 0.2em;
+}
+
+/* Reduced motion — disable the scroll animation */
+@media (prefers-reduced-motion: reduce) {
+  .card-wrap {
+    transform: translateX(0) !important;
+  }
+}
+
+════════════════════════════════════════════
+TYPESCRIPT — COMPLETE SCROLL DRIVER
+════════════════════════════════════════════
+
+import {
+  Component, AfterViewInit, OnDestroy,
+  ViewChild, ElementRef, HostListener
+} from '@angular/core';
+
+/* Inside your landing component class: */
+
+  @ViewChild('cardsSection') cardsSectionRef!: ElementRef;
+  @ViewChild('card1')        card1Ref!: ElementRef;
+  @ViewChild('card2')        card2Ref!: ElementRef;
+
+  private sectionTop    = 0;
+  private sectionHeight = 0;
+  private ENTER_RANGE   = 300;  /* scroll px over which cards enter */
+  private REST_RANGE    = 200;  /* scroll px where cards rest at 0 */
+  private EXIT_RANGE    = 300;  /* scroll px over which cards exit */
+  private STAGGER       = 80;   /* px offset between card 1 and 2 */
+  private reducedMotion = false;
+
+  ngAfterViewInit(): void {
+    /* Check reduced motion preference */
+    this.reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+
+    /* Measure section position after view renders */
+    setTimeout(() => this.measureSection(), 300);
+
+    /* Re-measure on resize */
+  }
+
+  @HostListener('window:resize')
+  onResize(): void {
+    this.measureSection();
+  }
+
+  private measureSection(): void {
+    if (!this.cardsSectionRef) return;
+    const rect = this.cardsSectionRef.nativeElement
+      .getBoundingClientRect();
+    this.sectionTop    = rect.top + window.scrollY;
+    this.sectionHeight = rect.height;
+  }
+
+  @HostListener('window:scroll')
+  onScroll(): void {
+    if (this.reducedMotion) return;
+    this.driveCards();
+  }
+
+  private driveCards(): void {
+    const scrollY  = window.scrollY;
+    const vH       = window.innerHeight;
+
+    /* The scroll position at which the section becomes relevant
+       is when the TOP of the section hits the BOTTOM of the
+       viewport (section starts entering view) */
+    const enterStart = this.sectionTop - vH;
+
+    /* Define zone boundaries in scrollY space */
+    const enterEnd   = enterStart  + this.ENTER_RANGE;
+    const restEnd    = enterEnd    + this.REST_RANGE;
+    const exitEnd    = restEnd     + this.EXIT_RANGE;
+
+    let progress1: number;  /* -1 = off-left, 0 = resting, 1 = off-right */
+    let progress2: number;
+
+    if (scrollY < enterStart) {
+      /* Before section — both cards off-screen LEFT */
+      progress1 = -1;
+      progress2 = -1;
+
+    } else if (scrollY < enterEnd) {
+      /* ENTERING — sliding in from left */
+      /* progress goes 0 → 1 as scroll goes enterStart → enterEnd */
+      const t = (scrollY - enterStart) / this.ENTER_RANGE;
+      /* easeOutCubic — fast in, slows to rest */
+      const eased = 1 - Math.pow(1 - t, 3);
+      progress1 = -1 + eased;         /* -1 → 0 */
+      /* card2 stagger: slightly behind card1 in the same range */
+      const t2 = Math.max(0,
+        (scrollY - enterStart - this.STAGGER) /
+        (this.ENTER_RANGE - this.STAGGER)
+      );
+      const eased2 = 1 - Math.pow(1 - Math.min(t2, 1), 3);
+      progress2 = -1 + eased2;
+
+    } else if (scrollY < restEnd) {
+      /* RESTING — both at translateX(0) */
+      progress1 = 0;
+      progress2 = 0;
+
+    } else if (scrollY < exitEnd) {
+      /* EXITING — sliding out to right */
+      const t = (scrollY - restEnd) / this.EXIT_RANGE;
+      const eased = Math.pow(t, 2);   /* easeInQuad — slow start, fast exit */
+      progress1 = eased;              /* 0 → 1 */
+      /* card2 lags card1 on exit — exits after card1 */
+      const t2 = Math.max(0,
+        (scrollY - restEnd - this.STAGGER) /
+        (this.EXIT_RANGE - this.STAGGER)
+      );
+      progress2 = Math.pow(Math.min(t2, 1), 2);
+
+    } else {
+      /* Past section — both cards off-screen RIGHT */
+      progress1 = 1;
+      progress2 = 1;
+    }
+
+    /* Map progress to translateX pixels
+       -1 = -110vw (off left)
+        0 = 0px    (resting)
+        1 = 110vw  (off right)  */
+    const vW = window.innerWidth;
+    const x1 = progress1 * vW * 1.1;
+    const x2 = progress2 * vW * 1.1;
+
+    /* Apply transforms directly to DOM — no Angular CD overhead */
+    const el1 = this.card1Ref?.nativeElement as HTMLElement;
+    const el2 = this.card2Ref?.nativeElement as HTMLElement;
+
+    if (el1) el1.style.transform = `translateX(${x1.toFixed(1)}px)`;
+    if (el2) el2.style.transform = `translateX(${x2.toFixed(1)}px)`;
+  }
+
+════════════════════════════════════════════
+RULES — DO NOT CHANGE THESE
+════════════════════════════════════════════
+
+1. style.transform is set directly on the DOM element in the
+   scroll handler — NOT via Angular binding [(ngStyle)] or
+   [style.transform]. Direct DOM manipulation is required here
+   because Angular's change detection cycle cannot keep up
+   with scroll frequency (60fps). Using Angular bindings
+   will cause visible lag and jank.
+
+2. No CSS transition on .card-wrap — the scroll handler
+   fires every frame. A CSS transition on top of that creates
+   a double-easing effect where the card lags behind the
+   calculation. The easing is IN the JavaScript math only.
+
+3. easeOutCubic on ENTER (1 - Math.pow(1-t, 3)):
+   cards accelerate then settle gently into position.
+   easeInQuad on EXIT (Math.pow(t, 2)):
+   cards start slow then accelerate off-screen.
+   This asymmetry is intentional — enter feels like landing,
+   exit feels like being pulled away.
+
+4. STAGGER = 80px scroll distance, not 80ms time delay.
+   Card 2 starts its animation 80 scroll-pixels after Card 1.
+   Do not implement as setTimeout — it must be scroll-based.
+
+5. overflow-x: hidden must be on the HOST or a parent
+   wrapper — NOT on .cards-section itself. Putting it on
+   the section clips the cards before they reach center.
+
+6. measureSection() must run after a 300ms setTimeout in
+   ngAfterViewInit — the DOM needs time to paint before
+   getBoundingClientRect() returns accurate values.
+   Running it immediately returns wrong coordinates.
+
+7. Re-measure on window:resize — section position changes
+   when viewport width changes. Stale measurements cause
+   cards to animate at wrong scroll positions.
+
+════════════════════════════════════════════
+DELIVERABLE
+════════════════════════════════════════════
+
+1. Updated landing.component.html — cards section
+2. Updated landing.component.scss — cards section styles
+3. Updated landing.component.ts — full scroll driver
+   merged with existing blur reveal logic
+   (both must coexist — do not remove the hero reveal)
