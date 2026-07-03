@@ -1,235 +1,177 @@
-Make these 3 specific changes to ecosystem.component only.
-Do not touch anything else.
+
+In ecosystem.component.scss and .html make these 
+specific changes only. Nothing else.
 
 ════════════════════════════════════════
-CHANGE 1 — WORKDAY BANNER: LEFT → FULL WIDTH CENTERED
+CHANGE 1 — REMOVE COLUMN PANEL BACKGROUNDS
 ════════════════════════════════════════
 
-The workday banner is currently left-aligned inside 
-.workday-inner. Fix it:
+.phase-col must become an invisible layout container.
+Remove ALL background, border, border-radius, 
+backdrop-filter from .phase-col.
 
-.workday-banner {
-  margin: 0.5rem 5vw 0;
-  /* already correct — keep as is */
+Replace with:
+
+.phase-col {
+  padding: 0 6px;
+  background: transparent;   /* NO panel background */
+  border: none;              /* NO column border */
+  border-radius: 0;
+  backdrop-filter: none;
 }
 
-.workday-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;  /* ADD THIS — was missing */
-  gap: 14px;
-  width: 100%;
-}
+The colored identity moves entirely to the 
+individual cards — not the column wrapper.
 
-/* Also center the text block */
-.workday-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: flex-start;
-  /* do NOT center text inside — just center the whole block */
-}
-
-/* Move CORE PLATFORM badge to far right using margin-left auto */
-.workday-badge {
-  margin-left: auto;  /* pushes badge to right edge */
-}
-
-Result: W icon + Workday text centered, 
-CORE PLATFORM badge flush right.
+Also remove [style.background] and [style.border-color] 
+bindings from the .phase-col div in HTML.
+Keep all other bindings on child elements.
 
 ════════════════════════════════════════
-CHANGE 2 — PHASE COLORS: restore previous palette
+CHANGE 2 — EACH CARD GETS ITS OWN 
+GRADIENT BACKGROUND
 ════════════════════════════════════════
 
-Each phase column gets its own color identity.
-Define a color per phase using CSS custom properties
-set via [style] binding on each .phase-col in HTML.
+Remove the flat [style.background] binding from .sys-card.
+Instead give each card a gradient via a CSS class approach.
 
-In ecosystem.component.ts, update the phases array
-to include a color set per phase:
-
-readonly phases: Phase[] = [
-  {
-    id: 'recruit',
-    label: 'Recruit',
-    colors: {
-      panel:      'rgba(45, 12, 80, 0.92)',    /* deep purple */
-      border:     'rgba(160, 80, 255, 0.3)',
-      header:     'rgba(160, 80, 255, 0.7)',
-      card:       'rgba(55, 15, 95, 0.95)',
-      cardBorder: 'rgba(160, 80, 255, 0.25)',
-      accent:     '#A050FF',
-      iconBg:     'rgba(160, 80, 255, 0.12)',
-    },
-    systems: [ ...existing systems... ]
-  },
-  {
-    id: 'onboard',
-    label: 'Onboard',
-    colors: {
-      panel:      'rgba(10, 40, 15, 0.92)',    /* deep green */
-      border:     'rgba(0, 200, 100, 0.3)',
-      header:     'rgba(0, 200, 100, 0.7)',
-      card:       'rgba(8, 50, 18, 0.95)',
-      cardBorder: 'rgba(0, 200, 100, 0.25)',
-      accent:     '#00C864',
-      iconBg:     'rgba(0, 200, 100, 0.12)',
-    },
-    systems: [ ...existing systems... ]
-  },
-  {
-    id: 'assoc-exp',
-    label: 'Assoc. Exp.',
-    colors: {
-      panel:      'rgba(40, 20, 5, 0.92)',     /* deep amber */
-      border:     'rgba(220, 140, 0, 0.3)',
-      header:     'rgba(220, 140, 0, 0.7)',
-      card:       'rgba(50, 25, 5, 0.95)',
-      cardBorder: 'rgba(220, 140, 0, 0.25)',
-      accent:     '#DC8C00',
-      iconBg:     'rgba(220, 140, 0, 0.12)',
-    },
-    systems: [ ...existing systems... ]
-  },
-  {
-    id: 'assoc-mgmt',
-    label: 'Assoc. Mgmt.',
-    colors: {
-      panel:      'rgba(45, 20, 5, 0.92)',     /* deep orange */
-      border:     'rgba(230, 100, 0, 0.3)',
-      header:     'rgba(230, 100, 0, 0.7)',
-      card:       'rgba(55, 25, 5, 0.95)',
-      cardBorder: 'rgba(230, 100, 0, 0.25)',
-      accent:     '#E66400',
-      iconBg:     'rgba(230, 100, 0, 0.12)',
-    },
-    systems: [ ...existing systems... ]
-  },
-  {
-    id: 'retain',
-    label: 'Retain',
-    colors: {
-      panel:      'rgba(45, 8, 8, 0.92)',      /* deep red */
-      border:     'rgba(220, 60, 60, 0.3)',
-      header:     'rgba(220, 60, 60, 0.7)',
-      card:       'rgba(55, 10, 10, 0.95)',
-      cardBorder: 'rgba(220, 60, 60, 0.25)',
-      accent:     '#DC3C3C',
-      iconBg:     'rgba(220, 60, 60, 0.12)',
-    },
-    systems: [ ...existing systems... ]
-  },
-  {
-    id: 'offboard',
-    label: 'Offboard',
-    colors: {
-      panel:      'rgba(20, 20, 22, 0.92)',    /* deep grey */
-      border:     'rgba(140, 140, 160, 0.3)',
-      header:     'rgba(140, 140, 160, 0.7)',
-      card:       'rgba(28, 28, 32, 0.95)',
-      cardBorder: 'rgba(140, 140, 160, 0.25)',
-      accent:     '#8C8CA0',
-      iconBg:     'rgba(140, 140, 160, 0.12)',
-    },
-    systems: [ ...existing systems... ]
-  }
-];
-
-In HTML, bind colors to each phase column via 
-inline styles. Update .phase-col to use 
-[style] bindings:
+In HTML, add a class based on phase id:
 
 <div
-  *ngFor="let phase of phases"
-  class="phase-col"
-  [style.background]="phase.colors.panel"
-  [style.border-color]="phase.colors.border">
+  *ngFor="let sys of visibleSystems(phase); let i = index"
+  class="sys-card"
+  [class]="'sys-card phase-' + phase.id"
+  [style.border-color]="phase.colors.cardBorder"
+  [style.animation-delay]="(i * 60) + 'ms'">
 
-  <div class="phase-header"
-    [style.border-bottom-color]="phase.colors.border">
-    <span class="phase-label"
-      [style.color]="phase.colors.header">
-      {{ phase.label }}
-    </span>
-    <span class="phase-count"
-      [style.color]="phase.colors.accent"
-      [style.border-color]="phase.colors.cardBorder"
-      [style.background]="phase.colors.iconBg">
-      {{ phase.systems.length }}
-    </span>
-  </div>
+In SCSS, define gradient per phase:
 
-  <div class="phase-systems">
-    <div
-      *ngFor="let sys of visibleSystems(phase); 
-              let i = index"
-      class="sys-card"
-      [style.background]="phase.colors.card"
-      [style.border-color]="phase.colors.cardBorder"
-      [style.animation-delay]="(i * 60) + 'ms'">
+/* BASE CARD — no background here, 
+   gradient comes from phase class */
+.sys-card {
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: default;
+  border: 1px solid;   /* color from [style] binding */
+  opacity: 0;
+  animation: card-enter 0.4s ease forwards;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
 
-      <div class="sys-icon"
-        [style.background]="phase.colors.iconBg"
-        [style.border-color]="phase.colors.cardBorder">
-        {{ sys.icon }}
-      </div>
+  &:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.12);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+}
 
-      <div class="sys-info">
-        <span class="sys-name">{{ sys.name }}</span>
-        <span class="sys-cat"
-          [style.color]="phase.colors.accent">
-          {{ sys.category }}
-        </span>
-      </div>
+/* RECRUIT — purple gradient */
+.sys-card.phase-recruit {
+  background: linear-gradient(
+    135deg,
+    rgba(65, 18, 110, 0.97) 0%,
+    rgba(45, 10, 80, 0.97) 60%,
+    rgba(35, 6, 65, 0.97)  100%
+  );
+}
 
-    </div>
+/* ONBOARD — green gradient */
+.sys-card.phase-onboard {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 55, 22, 0.97) 0%,
+    rgba(8,  42, 14, 0.97) 60%,
+    rgba(5,  32, 10, 0.97) 100%
+  );
+}
 
-    <!-- EXPAND / COLLAPSE BUTTON -->
-    <!-- Only shows if phase has more than 4 systems -->
-    <button
-      *ngIf="phase.systems.length > 4"
-      class="expand-btn"
-      [style.color]="phase.colors.accent"
-      [style.border-color]="phase.colors.cardBorder"
-      (click)="togglePhase(phase.id)">
-      <span class="expand-icon">
-        {{ expandedPhases.has(phase.id) ? '↑' : '↓' }}
-      </span>
-      <span class="expand-label">
-        {{ expandedPhases.has(phase.id)
-            ? 'Show less'
-            : '+' + (phase.systems.length - 4) + ' more' }}
-      </span>
-    </button>
+/* ASSOC EXP — amber/brown gradient */
+.sys-card.phase-assoc-exp {
+  background: linear-gradient(
+    135deg,
+    rgba(70, 35, 5,  0.97) 0%,
+    rgba(55, 25, 3,  0.97) 60%,
+    rgba(42, 18, 2,  0.97) 100%
+  );
+}
 
-  </div>
-</div>
+/* ASSOC MGMT — orange gradient */
+.sys-card.phase-assoc-mgmt {
+  background: linear-gradient(
+    135deg,
+    rgba(75, 30, 5,  0.97) 0%,
+    rgba(60, 22, 3,  0.97) 60%,
+    rgba(45, 15, 2,  0.97) 100%
+  );
+}
+
+/* RETAIN — red gradient */
+.sys-card.phase-retain {
+  background: linear-gradient(
+    135deg,
+    rgba(70, 12, 12, 0.97) 0%,
+    rgba(55, 8,  8,  0.97) 60%,
+    rgba(40, 5,  5,  0.97) 100%
+  );
+}
+
+/* OFFBOARD — grey gradient */
+.sys-card.phase-offboard {
+  background: linear-gradient(
+    135deg,
+    rgba(35, 35, 40, 0.97) 0%,
+    rgba(26, 26, 30, 0.97) 60%,
+    rgba(20, 20, 24, 0.97) 100%
+  );
+}
+
+/* Icon bg per phase — use existing [style] binding */
+/* Already handled by phase.colors.iconBg */
 
 ════════════════════════════════════════
-CHANGE 3 — EXPAND/COLLAPSE AFTER 4 CARDS
+CHANGE 3 — PHASE HEADER FLOATS ABOVE CARDS
 ════════════════════════════════════════
 
-In ecosystem.component.ts add:
+Since the column has no background panel, the phase 
+header needs its own subtle backing so it reads clearly:
 
-  expandedPhases = new Set<string>();
+.phase-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 0.6rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid;  /* color from binding */
+  background: transparent;
+  backdrop-filter: none;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
 
-  togglePhase(phaseId: string): void {
-    if (this.expandedPhases.has(phaseId)) {
-      this.expandedPhases.delete(phaseId);
-    } else {
-      this.expandedPhases.add(phaseId);
-    }
-  }
+/* Add a fade behind sticky header so cards 
+   scroll behind it cleanly */
+.phase-header::before {
+  content: '';
+  position: absolute;
+  inset: -8px -8px 0 -8px;
+  background: rgba(4, 10, 8, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: -1;
+  border-radius: 4px 4px 0 0;
+}
 
-  visibleSystems(phase: Phase): EcoSystem[] {
-    if (this.expandedPhases.has(phase.id)) {
-      return phase.systems;          /* show all */
-    }
-    return phase.systems.slice(0, 4); /* show first 4 */
-  }
+════════════════════════════════════════
+CHANGE 4 — EXPAND BUTTON MATCHES CARDS
+════════════════════════════════════════
 
-In ecosystem.component.scss add expand button styles:
+The expand button should feel like a ghost version 
+of the cards — same color family, not a generic button:
 
 .expand-btn {
   width: 100%;
@@ -238,59 +180,89 @@ In ecosystem.component.scss add expand button styles:
   justify-content: center;
   gap: 6px;
   background: transparent;
-  border: 1px dashed;   /* color comes from [style] binding */
-  border-radius: 7px;
-  padding: 8px 12px;
+  border: 1px dashed;
+  border-radius: 8px;
+  padding: 9px 12px;
   cursor: pointer;
   font-family: 'Inter', sans-serif;
   font-size: 0.72rem;
   font-weight: 500;
-  letter-spacing: 0.06em;
-  margin-top: 4px;
-  opacity: 0.65;
-  transition: opacity 0.2s ease, background 0.2s ease;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+  opacity: 0.55;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease;
 
   &:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.03);
   }
 }
 
-.expand-icon {
-  font-size: 0.8rem;
-  transition: transform 0.3s ease;
+/* color and border-color come from 
+   existing [style] bindings — no change to HTML */
+
+════════════════════════════════════════
+CHANGE 5 — ADD INNER GLOW TO CARDS
+════════════════════════════════════════
+
+Add box-shadow to each phase card class for the 
+subtle inner gradient effect:
+
+.sys-card.phase-recruit {
+  box-shadow:
+    inset 0 1px 0 rgba(160, 80, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
 
-.expand-label {
-  font-size: 0.7rem;
+.sys-card.phase-onboard {
+  box-shadow:
+    inset 0 1px 0 rgba(0, 200, 100, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* Smooth height transition when cards appear/disappear */
-.phase-systems {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  /* cards animate in via existing @keyframes card-enter */
+.sys-card.phase-assoc-exp {
+  box-shadow:
+    inset 0 1px 0 rgba(220, 140, 0, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* Cards entering after expand get the same blur-in animation */
-.sys-card {
-  animation: card-enter 0.4s ease forwards;
+.sys-card.phase-assoc-mgmt {
+  box-shadow:
+    inset 0 1px 0 rgba(230, 100, 0, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.sys-card.phase-retain {
+  box-shadow:
+    inset 0 1px 0 rgba(220, 60, 60, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.sys-card.phase-offboard {
+  box-shadow:
+    inset 0 1px 0 rgba(140, 140, 160, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
 
 ════════════════════════════════════════
 WHAT NOT TO TOUCH
 ════════════════════════════════════════
 
-- Do not change background.component
-- Do not change app.component
-- Do not change styles.scss
-- Do not change the column layout or grid
-- Do not change .eco-topbar, .eco-title, .eco-subtitle
+- Do not change .phases-grid layout or columns
+- Do not change .eco-topbar, title, subtitle
+- Do not change .workday-banner
 - Do not change .phase-connector
-- Do not remove backdrop-filter from .phase-col
+- Do not change TypeScript logic
+- Do not change background.component
+- Do not remove [style] color bindings on 
+  .phase-label, .phase-count, .sys-cat, 
+  .sys-icon, .expand-btn
 
-Show complete updated files:
-1. ecosystem.component.html
-2. ecosystem.component.scss
-3. ecosystem.component.ts
+════════════════════════════════════════
+DELIVERABLE
+════════════════════════════════════════
+
+1. ecosystem.component.html — updated class binding on sys-card
+2. ecosystem.component.scss — updated with all changes above
