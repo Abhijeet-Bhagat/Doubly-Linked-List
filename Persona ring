@@ -1,0 +1,503 @@
+I have a persona page in Angular with a static green 
+circle icon. Replace it with a Pioneer-style floating 
+circular button with a rotating outer ring. This component 
+appears on all persona views (Associate, Manager, HR Partner).
+
+No external libraries. Complete implementation. No stubs.
+
+════════════════════════════════════════
+COMPONENT: FloatingPersonaButtonComponent
+selector: app-floating-persona-btn
+════════════════════════════════════════
+
+This is a standalone component placed in app.component.html
+so it persists across persona route changes.
+It is ONLY visible on persona routes — hidden on 
+landing and ecosystem pages.
+
+Show it when route includes '/persona' or '/lens'.
+Hide it on '/' and '/ecosystem'.
+
+In app.component.ts:
+  import { Router, NavigationEnd } from '@angular/router';
+
+  showPersonaBtn = false;
+
+  constructor(private router: Router) {
+    this.router.events.subscribe(event => {
+      if (event instanceof NavigationEnd) {
+        this.showPersonaBtn = 
+          event.url.includes('/persona') || 
+          event.url.includes('/lens');
+      }
+    });
+  }
+
+In app.component.html:
+  <app-floating-persona-btn 
+    *ngIf="showPersonaBtn">
+  </app-floating-persona-btn>
+
+════════════════════════════════════════
+HTML
+════════════════════════════════════════
+
+<div class="persona-float" 
+     [class.open]="isOpen"
+     (click)="toggleMenu()">
+
+  <!-- OUTER ROTATING RING -->
+  <svg class="ring-svg" viewBox="0 0 120 120">
+    
+    <!-- Static background circle track -->
+    <circle
+      cx="60" cy="60" r="54"
+      fill="none"
+      stroke="rgba(0,200,140,0.12)"
+      stroke-width="1"/>
+
+    <!-- Rotating dashed arc -->
+    <circle
+      cx="60" cy="60" r="54"
+      fill="none"
+      stroke="rgba(0,200,140,0.55)"
+      stroke-width="1"
+      stroke-dasharray="30 10 8 10 5 10 15 10 20 10"
+      stroke-linecap="round"
+      class="rotating-ring"/>
+
+    <!-- Second counter-rotating thin arc -->
+    <circle
+      cx="60" cy="60" r="48"
+      fill="none"
+      stroke="rgba(0,200,140,0.2)"
+      stroke-width="0.5"
+      stroke-dasharray="60 20 10 20"
+      stroke-linecap="round"
+      class="counter-ring"/>
+
+  </svg>
+
+  <!-- INNER CIRCLE -->
+  <div class="inner-circle">
+    <span class="persona-label-top">Explore as</span>
+    <span class="persona-label-role">{{ currentPersona }}</span>
+  </div>
+
+</div>
+
+<!-- PERSONA SWITCHER MENU — appears on click -->
+<div class="persona-menu" [class.open]="isOpen">
+  <div class="menu-label">Switch perspective</div>
+  
+  <button 
+    *ngFor="let p of personas"
+    class="menu-item"
+    [class.active]="p.id === activePersonaId"
+    (click)="switchPersona(p); $event.stopPropagation()">
+    <span class="menu-icon">{{ p.icon }}</span>
+    <div class="menu-text">
+      <span class="menu-role">{{ p.label }}</span>
+      <span class="menu-desc">{{ p.desc }}</span>
+    </div>
+    <span class="menu-check" *ngIf="p.id === activePersonaId">
+      ✓
+    </span>
+  </button>
+
+</div>
+
+<!-- Backdrop to close menu -->
+<div 
+  class="menu-backdrop" 
+  *ngIf="isOpen"
+  (click)="closeMenu()">
+</div>
+
+════════════════════════════════════════
+SCSS — COMPLETE
+════════════════════════════════════════
+
+/* HOST */
+:host {
+  position: fixed;
+  bottom: 2.5rem;
+  right: 2.5rem;
+  z-index: 500;
+  display: block;
+}
+
+/* ── OUTER CONTAINER ── */
+.persona-float {
+  width: 110px;
+  height: 110px;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Subtle hover lift */
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    transform: scale(1.06);
+
+    .rotating-ring {
+      stroke: rgba(0, 200, 140, 0.9);
+      animation-duration: 6s; /* speeds up on hover */
+    }
+
+    .inner-circle {
+      background: rgba(8, 30, 20, 0.98);
+      border-color: rgba(0, 200, 140, 0.4);
+    }
+  }
+
+  &.open {
+    transform: scale(0.95);
+
+    .rotating-ring {
+      animation-duration: 3s; /* fast when menu open */
+      stroke: #00C896;
+    }
+  }
+}
+
+/* ── SVG RINGS ── */
+.ring-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.rotating-ring {
+  transform-origin: 60px 60px;
+  animation: rotate-cw 12s linear infinite;
+  transition: stroke 0.3s ease, animation-duration 0.3s ease;
+}
+
+.counter-ring {
+  transform-origin: 60px 60px;
+  animation: rotate-ccw 20s linear infinite;
+}
+
+@keyframes rotate-cw {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes rotate-ccw {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+/* ── INNER CIRCLE ── */
+.inner-circle {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: rgba(6, 18, 12, 0.96);
+  border: 1px solid rgba(0, 200, 140, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  position: relative;
+  z-index: 2;
+  backdrop-filter: blur(10px);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
+
+  /* Glow effect */
+  box-shadow:
+    0 0 20px rgba(0, 200, 140, 0.06),
+    inset 0 1px 0 rgba(0, 200, 140, 0.1);
+}
+
+.persona-label-top {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.5rem;
+  font-weight: 400;
+  color: rgba(0, 200, 140, 0.55);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.persona-label-role {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  text-align: center;
+  line-height: 1.2;
+  padding: 0 6px;
+  /* Shrink text if long */
+  max-width: 70px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ── PERSONA SWITCHER MENU ── */
+.persona-menu {
+  position: absolute;
+  bottom: 120px;
+  right: 0;
+  width: 240px;
+  background: rgba(6, 18, 12, 0.97);
+  border: 1px solid rgba(0, 200, 140, 0.2);
+  border-radius: 12px;
+  backdrop-filter: blur(20px);
+  padding: 0.75rem;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 0.5px rgba(0, 200, 140, 0.1);
+
+  /* Hidden by default */
+  opacity: 0;
+  transform: translateY(10px) scale(0.96);
+  pointer-events: none;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom right;
+
+  &.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: all;
+  }
+}
+
+.menu-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: rgba(0, 200, 140, 0.45);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(0, 200, 140, 0.08);
+  margin-bottom: 0.5rem;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+
+  &:hover {
+    background: rgba(0, 200, 140, 0.06);
+  }
+
+  &.active {
+    background: rgba(0, 200, 140, 0.08);
+    border: 1px solid rgba(0, 200, 140, 0.15);
+  }
+}
+
+.menu-icon {
+  font-size: 1rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(0, 200, 140, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.menu-role {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.menu-desc {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 300;
+  color: rgba(190, 225, 215, 0.45);
+}
+
+.menu-check {
+  font-size: 0.75rem;
+  color: #00C896;
+  font-weight: 600;
+}
+
+/* ── BACKDROP ── */
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+/* ── REDUCED MOTION ── */
+@media (prefers-reduced-motion: reduce) {
+  .rotating-ring,
+  .counter-ring {
+    animation: none;
+  }
+}
+
+════════════════════════════════════════
+TYPESCRIPT — COMPLETE
+════════════════════════════════════════
+
+import {
+  Component, OnInit, OnDestroy
+} from '@angular/core';
+import { Router } from '@angular/router';
+
+interface Persona {
+  id: string;
+  label: string;
+  desc: string;
+  icon: string;
+  route: string;
+}
+
+@Component({
+  selector: 'app-floating-persona-btn',
+  templateUrl: './floating-persona-btn.component.html',
+  styleUrls: ['./floating-persona-btn.component.scss']
+})
+export class FloatingPersonaBtnComponent implements OnInit {
+
+  isOpen = false;
+
+  personas: Persona[] = [
+    {
+      id: 'associate',
+      label: 'Associate',
+      desc: 'Day-to-day tools and moments',
+      icon: '👤',
+      route: '/persona/associate'
+    },
+    {
+      id: 'manager',
+      label: 'Manager',
+      desc: 'Team tools and leadership flows',
+      icon: '👥',
+      route: '/persona/manager'
+    },
+    {
+      id: 'hr-partner',
+      label: 'HR Partner',
+      desc: 'Policy, process and people ops',
+      icon: '🛡',
+      route: '/persona/hr-partner'
+    }
+  ];
+
+  activePersonaId = 'associate';
+
+  get currentPersona(): string {
+    return this.personas.find(
+      p => p.id === this.activePersonaId
+    )?.label ?? 'Associate';
+  }
+
+  constructor(private router: Router) {}
+
+  ngOnInit(): void {
+    /* Set active persona based on current route */
+    const url = this.router.url;
+    const match = this.personas.find(
+      p => url.includes(p.id)
+    );
+    if (match) this.activePersonaId = match.id;
+  }
+
+  toggleMenu(): void {
+    this.isOpen = !this.isOpen;
+  }
+
+  closeMenu(): void {
+    this.isOpen = false;
+  }
+
+  switchPersona(persona: Persona): void {
+    this.activePersonaId = persona.id;
+    this.isOpen = false;
+    this.router.navigate([persona.route]);
+  }
+}
+
+════════════════════════════════════════
+RULES
+════════════════════════════════════════
+
+1. The SVG rings use transform-origin: 60px 60px 
+   (the center of the 120×120 viewBox). Do NOT use 
+   transform-origin: center — SVG and CSS centers 
+   differ and the ring will orbit off-center.
+
+2. Two rings rotating in opposite directions at 
+   different speeds (12s CW, 20s CCW) — this creates 
+   the organic non-mechanical feel. Do not make them 
+   the same speed or direction.
+
+3. stroke-dasharray on .rotating-ring uses uneven 
+   segments deliberately — "30 10 8 10 5 10 15 10 20 10"
+   The irregular pattern makes it feel like a 
+   scientific instrument, not a loading spinner.
+
+4. .persona-menu transforms from bottom right — 
+   transform-origin: bottom right — so it unfolds 
+   toward the content, not away from it.
+
+5. $event.stopPropagation() on menu-item click is 
+   mandatory — without it the click bubbles to 
+   .persona-float and immediately closes the menu 
+   that was just interacted with.
+
+6. menu-backdrop uses z-index: -1 relative to 
+   :host's stacking context — it catches clicks 
+   outside the menu without needing a full-screen 
+   overlay that blocks page interaction.
+
+7. Do NOT add transition to animation-duration — 
+   CSS cannot transition animation-duration. The 
+   speed change on hover is instant, which actually 
+   feels more responsive than a transition would.
+
+════════════════════════════════════════
+DELIVERABLE
+════════════════════════════════════════
+
+1. floating-persona-btn.component.html
+2. floating-persona-btn.component.scss
+3. floating-persona-btn.component.ts
+4. Updated app.component.html — 
+   add <app-floating-persona-btn *ngIf="showPersonaBtn">
+5. Updated app.component.ts — 
+   add route listener and showPersonaBtn flag
+6. Updated app.module.ts — 
+   declare FloatingPersonaBtnComponent
