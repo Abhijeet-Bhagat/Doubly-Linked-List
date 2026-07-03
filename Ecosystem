@@ -1,142 +1,296 @@
-Keep the current background exactly as is — 
-transparent component, global teal particle canvas, 
-teal light source gradient. Do not touch background.component 
-or styles.scss background values.
-
-Change ONLY the ecosystem page foreground elements to match 
-the visibility of the previous design:
+Make these 3 specific changes to ecosystem.component only.
+Do not touch anything else.
 
 ════════════════════════════════════════
-PHASE COLUMN BACKGROUNDS — make them solid panels
+CHANGE 1 — WORKDAY BANNER: LEFT → FULL WIDTH CENTERED
 ════════════════════════════════════════
 
-Each .phase-col gets its own solid dark panel so it reads 
-as a distinct column against the background:
-
-.phase-col {
-  background: rgba(6, 18, 12, 0.96);
-  border-radius: 10px;
-  border: 1px solid rgba(0, 200, 140, 0.18);
-  padding: 0.85rem;
-  backdrop-filter: blur(20px);
-}
-
-Each column becomes its own dark glass panel — 
-fully opaque enough to read as solid, 
-still has the teal border tying it to the palette.
-
-════════════════════════════════════════
-SYSTEM CARDS — high contrast, clearly separated
-════════════════════════════════════════
-
-.sys-card {
-  background: rgba(0, 30, 18, 0.98);
-  border: 1px solid rgba(0, 200, 140, 0.25);
-  border-radius: 7px;
-  padding: 10px 12px;
-  box-shadow: 
-    0 1px 3px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(0, 200, 140, 0.06);
-}
-
-.sys-card:hover {
-  background: rgba(0, 45, 26, 0.98);
-  border-color: rgba(0, 200, 140, 0.5);
-  transform: translateY(-2px);
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(0, 200, 140, 0.2);
-}
-
-.sys-name {
-  color: #ffffff;        /* full white — not rgba */
-  font-weight: 600;      /* up from 500 */
-  font-size: 0.82rem;
-}
-
-.sys-cat {
-  color: rgba(0, 200, 140, 0.6);  /* up from 0.42 */
-}
-
-════════════════════════════════════════
-PHASE HEADERS — bolder, more distinct
-════════════════════════════════════════
-
-.phase-header {
-  border-bottom: 1px solid rgba(0, 200, 140, 0.3);
-  padding-bottom: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.phase-label {
-  color: #00C896;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-}
-
-.phase-count {
-  background: rgba(0, 200, 140, 0.12);
-  border: 1px solid rgba(0, 200, 140, 0.25);
-  color: #00C896;
-  font-weight: 600;
-}
-
-════════════════════════════════════════
-WORKDAY BANNER — fully opaque
-════════════════════════════════════════
+The workday banner is currently left-aligned inside 
+.workday-inner. Fix it:
 
 .workday-banner {
-  background: rgba(6, 18, 12, 0.97);
-  border: 1px solid rgba(0, 200, 140, 0.3);
-  border-top: 2px solid #00C896;
-  backdrop-filter: blur(20px);
+  margin: 0.5rem 5vw 0;
+  /* already correct — keep as is */
+}
+
+.workday-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;  /* ADD THIS — was missing */
+  gap: 14px;
+  width: 100%;
+}
+
+/* Also center the text block */
+.workday-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  /* do NOT center text inside — just center the whole block */
+}
+
+/* Move CORE PLATFORM badge to far right using margin-left auto */
+.workday-badge {
+  margin-left: auto;  /* pushes badge to right edge */
+}
+
+Result: W icon + Workday text centered, 
+CORE PLATFORM badge flush right.
+
+════════════════════════════════════════
+CHANGE 2 — PHASE COLORS: restore previous palette
+════════════════════════════════════════
+
+Each phase column gets its own color identity.
+Define a color per phase using CSS custom properties
+set via [style] binding on each .phase-col in HTML.
+
+In ecosystem.component.ts, update the phases array
+to include a color set per phase:
+
+readonly phases: Phase[] = [
+  {
+    id: 'recruit',
+    label: 'Recruit',
+    colors: {
+      panel:      'rgba(45, 12, 80, 0.92)',    /* deep purple */
+      border:     'rgba(160, 80, 255, 0.3)',
+      header:     'rgba(160, 80, 255, 0.7)',
+      card:       'rgba(55, 15, 95, 0.95)',
+      cardBorder: 'rgba(160, 80, 255, 0.25)',
+      accent:     '#A050FF',
+      iconBg:     'rgba(160, 80, 255, 0.12)',
+    },
+    systems: [ ...existing systems... ]
+  },
+  {
+    id: 'onboard',
+    label: 'Onboard',
+    colors: {
+      panel:      'rgba(10, 40, 15, 0.92)',    /* deep green */
+      border:     'rgba(0, 200, 100, 0.3)',
+      header:     'rgba(0, 200, 100, 0.7)',
+      card:       'rgba(8, 50, 18, 0.95)',
+      cardBorder: 'rgba(0, 200, 100, 0.25)',
+      accent:     '#00C864',
+      iconBg:     'rgba(0, 200, 100, 0.12)',
+    },
+    systems: [ ...existing systems... ]
+  },
+  {
+    id: 'assoc-exp',
+    label: 'Assoc. Exp.',
+    colors: {
+      panel:      'rgba(40, 20, 5, 0.92)',     /* deep amber */
+      border:     'rgba(220, 140, 0, 0.3)',
+      header:     'rgba(220, 140, 0, 0.7)',
+      card:       'rgba(50, 25, 5, 0.95)',
+      cardBorder: 'rgba(220, 140, 0, 0.25)',
+      accent:     '#DC8C00',
+      iconBg:     'rgba(220, 140, 0, 0.12)',
+    },
+    systems: [ ...existing systems... ]
+  },
+  {
+    id: 'assoc-mgmt',
+    label: 'Assoc. Mgmt.',
+    colors: {
+      panel:      'rgba(45, 20, 5, 0.92)',     /* deep orange */
+      border:     'rgba(230, 100, 0, 0.3)',
+      header:     'rgba(230, 100, 0, 0.7)',
+      card:       'rgba(55, 25, 5, 0.95)',
+      cardBorder: 'rgba(230, 100, 0, 0.25)',
+      accent:     '#E66400',
+      iconBg:     'rgba(230, 100, 0, 0.12)',
+    },
+    systems: [ ...existing systems... ]
+  },
+  {
+    id: 'retain',
+    label: 'Retain',
+    colors: {
+      panel:      'rgba(45, 8, 8, 0.92)',      /* deep red */
+      border:     'rgba(220, 60, 60, 0.3)',
+      header:     'rgba(220, 60, 60, 0.7)',
+      card:       'rgba(55, 10, 10, 0.95)',
+      cardBorder: 'rgba(220, 60, 60, 0.25)',
+      accent:     '#DC3C3C',
+      iconBg:     'rgba(220, 60, 60, 0.12)',
+    },
+    systems: [ ...existing systems... ]
+  },
+  {
+    id: 'offboard',
+    label: 'Offboard',
+    colors: {
+      panel:      'rgba(20, 20, 22, 0.92)',    /* deep grey */
+      border:     'rgba(140, 140, 160, 0.3)',
+      header:     'rgba(140, 140, 160, 0.7)',
+      card:       'rgba(28, 28, 32, 0.95)',
+      cardBorder: 'rgba(140, 140, 160, 0.25)',
+      accent:     '#8C8CA0',
+      iconBg:     'rgba(140, 140, 160, 0.12)',
+    },
+    systems: [ ...existing systems... ]
+  }
+];
+
+In HTML, bind colors to each phase column via 
+inline styles. Update .phase-col to use 
+[style] bindings:
+
+<div
+  *ngFor="let phase of phases"
+  class="phase-col"
+  [style.background]="phase.colors.panel"
+  [style.border-color]="phase.colors.border">
+
+  <div class="phase-header"
+    [style.border-bottom-color]="phase.colors.border">
+    <span class="phase-label"
+      [style.color]="phase.colors.header">
+      {{ phase.label }}
+    </span>
+    <span class="phase-count"
+      [style.color]="phase.colors.accent"
+      [style.border-color]="phase.colors.cardBorder"
+      [style.background]="phase.colors.iconBg">
+      {{ phase.systems.length }}
+    </span>
+  </div>
+
+  <div class="phase-systems">
+    <div
+      *ngFor="let sys of visibleSystems(phase); 
+              let i = index"
+      class="sys-card"
+      [style.background]="phase.colors.card"
+      [style.border-color]="phase.colors.cardBorder"
+      [style.animation-delay]="(i * 60) + 'ms'">
+
+      <div class="sys-icon"
+        [style.background]="phase.colors.iconBg"
+        [style.border-color]="phase.colors.cardBorder">
+        {{ sys.icon }}
+      </div>
+
+      <div class="sys-info">
+        <span class="sys-name">{{ sys.name }}</span>
+        <span class="sys-cat"
+          [style.color]="phase.colors.accent">
+          {{ sys.category }}
+        </span>
+      </div>
+
+    </div>
+
+    <!-- EXPAND / COLLAPSE BUTTON -->
+    <!-- Only shows if phase has more than 4 systems -->
+    <button
+      *ngIf="phase.systems.length > 4"
+      class="expand-btn"
+      [style.color]="phase.colors.accent"
+      [style.border-color]="phase.colors.cardBorder"
+      (click)="togglePhase(phase.id)">
+      <span class="expand-icon">
+        {{ expandedPhases.has(phase.id) ? '↑' : '↓' }}
+      </span>
+      <span class="expand-label">
+        {{ expandedPhases.has(phase.id)
+            ? 'Show less'
+            : '+' + (phase.systems.length - 4) + ' more' }}
+      </span>
+    </button>
+
+  </div>
+</div>
+
+════════════════════════════════════════
+CHANGE 3 — EXPAND/COLLAPSE AFTER 4 CARDS
+════════════════════════════════════════
+
+In ecosystem.component.ts add:
+
+  expandedPhases = new Set<string>();
+
+  togglePhase(phaseId: string): void {
+    if (this.expandedPhases.has(phaseId)) {
+      this.expandedPhases.delete(phaseId);
+    } else {
+      this.expandedPhases.add(phaseId);
+    }
+  }
+
+  visibleSystems(phase: Phase): EcoSystem[] {
+    if (this.expandedPhases.has(phase.id)) {
+      return phase.systems;          /* show all */
+    }
+    return phase.systems.slice(0, 4); /* show first 4 */
+  }
+
+In ecosystem.component.scss add expand button styles:
+
+.expand-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px dashed;   /* color comes from [style] binding */
+  border-radius: 7px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+  opacity: 0.65;
+  transition: opacity 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.expand-icon {
+  font-size: 0.8rem;
+  transition: transform 0.3s ease;
+}
+
+.expand-label {
+  font-size: 0.7rem;
+}
+
+/* Smooth height transition when cards appear/disappear */
+.phase-systems {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* cards animate in via existing @keyframes card-enter */
+}
+
+/* Cards entering after expand get the same blur-in animation */
+.sys-card {
+  animation: card-enter 0.4s ease forwards;
 }
 
 ════════════════════════════════════════
-TOP BAR — add subtle backing
+WHAT NOT TO TOUCH
 ════════════════════════════════════════
 
-.eco-topbar {
-  background: rgba(6, 18, 12, 0.7);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(0, 200, 140, 0.08);
-  margin-bottom: 1.5rem;
-  padding: 1.2rem 5vw;
-  border-radius: 0 0 10px 10px;
-}
+- Do not change background.component
+- Do not change app.component
+- Do not change styles.scss
+- Do not change the column layout or grid
+- Do not change .eco-topbar, .eco-title, .eco-subtitle
+- Do not change .phase-connector
+- Do not remove backdrop-filter from .phase-col
 
-════════════════════════════════════════
-PHASES GRID — add gap between columns
-════════════════════════════════════════
-
-.phases-grid {
-  gap: 10px;    /* was 0 — columns need breathing room 
-                   now that they are solid panels */
-  padding: 0 5vw 4rem;
-  align-items: start;   /* columns don't stretch to same 
-                           height — each column is its 
-                           own natural height */
-}
-
-════════════════════════════════════════
-SYS ICON — more visible
-════════════════════════════════════════
-
-.sys-icon {
-  background: rgba(0, 200, 140, 0.12);
-  border: 1px solid rgba(0, 200, 140, 0.2);
-  font-size: 12px;
-}
-
-════════════════════════════════════════
-RULES
-════════════════════════════════════════
-
-- Do NOT touch background.component.ts/scss/html
-- Do NOT touch styles.scss background values
-- Do NOT touch app.component
-- Do NOT add any solid background to :host
-- ONLY change the values listed above in 
-  ecosystem.component.scss
-- Show the complete updated ecosystem.component.scss
+Show complete updated files:
+1. ecosystem.component.html
+2. ecosystem.component.scss
+3. ecosystem.component.ts
