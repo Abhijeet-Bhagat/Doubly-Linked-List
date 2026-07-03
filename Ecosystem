@@ -1,0 +1,39 @@
+Redesign the ecosystem.component with this exact arrangement:
+
+LAYOUT TOP TO BOTTOM:
+1. Top bar: back button (left) + page title center + system count right
+2. Workday backbone card — centered, teal top border 2px
+3. Vertical connector line 1px teal 24px tall, centered
+4. Phase pill tabs — horizontal row, centered
+5. Systems grid — 3 columns, dark glass cards, switches on tab click
+6. Page background: transparent (global canvas shows through)
+
+BACK BUTTON:
+- Top left, "← Back to Journey"  
+- router.navigate(['/'])
+- Inter 300, rgba(255,255,255,0.4)
+- Hover: color white, arrow translateX(-4px) transition 0.2s
+- No border, no background
+
+PALETTE:
+- Background: transparent
+- Single accent: #00C896
+- Cards: rgba(4,12,10,0.72), border rgba(0,200,140,0.1)
+- Active tab: background #00C896, color #040C0A
+- Inactive tab: border rgba(0,200,140,0.25), color rgba(0,200,140,0.55)
+- All phase colors (purple, green, orange, red, grey) — REMOVE completely
+
+TYPOGRAPHY:
+- Page title: Syne 800
+- Phase tab labels: Inter 500, 0.75rem, letter-spacing 0.1em
+- System name: Inter 500, 0.88rem
+- Category label: Inter 300, 0.72rem, rgba(0,200,140,0.45)
+
+ENTRANCE ANIMATION:
+- Top bar: opacity 0 → 1, translateY(-10px) → 0, 0.5s ease, 0ms delay
+- Workday card: same, 200ms delay
+- Phase tabs: same, 400ms delay  
+- System cards: blur(16px) → blur(0), opacity 0 → 1, stagger 80ms per card
+
+Show complete: ecosystem.component.html, .scss, .ts
+No stubs. No TODOs.
