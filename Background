@@ -1,0 +1,475 @@
+Perfect. Here's the complete prompt.
+
+```
+Make these changes across the entire Angular application.
+No stubs. No TODOs. Complete implementation.
+
+════════════════════════════════════════════════════
+SECTION 1 — GLOBAL BACKGROUND SPLIT
+════════════════════════════════════════════════════
+
+Currently app-background renders the CSS gradient 
+AND the Three.js particle canvas on every page.
+
+Split this into two modes based on current route:
+
+MODE A — Landing + Ecosystem:
+  CSS gradient + Three.js particle canvas (current behavior)
+  Routes: '/' and '/ecosystem'
+
+MODE B — Persona pages + Journey pages:
+  CSS gradient ONLY — no canvas, no particles
+  Routes: '/persona/*' and any other routes
+
+In background.component.ts:
+
+  import { Router, NavigationEnd } from '@angular/router';
+  import { filter } from 'rxjs/operators';
+
+  showParticles = true;
+
+  constructor(private router: Router) {
+    this.router.events
+      .pipe(filter(e => e instanceof NavigationEnd))
+      .subscribe((e: any) => {
+        const particleRoutes = ['/', '/ecosystem'];
+        this.showParticles = particleRoutes.includes(e.url) 
+          || e.url === '/';
+      });
+  }
+
+In background.component.html:
+
+<div class="bg-gradient-layer">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<!-- Canvas only renders on particle routes -->
+<canvas 
+  #bgCanvas 
+  class="bg-canvas"
+  [style.display]="showParticles ? 'block' : 'none'">
+</canvas>
+
+In background.component.ts ngAfterViewInit:
+  Only call initThree() if showParticles is true.
+  Also subscribe to route changes — when switching 
+  from particle route to non-particle route:
+    cancelAnimationFrame(this.animationId)
+    this.renderer?.dispose()
+  When switching back to particle route:
+    this.initThree()
+
+Full updated logic:
+
+  ngAfterViewInit(): void {
+    this.gradientEl = document.querySelector(
+      '.bg-gradient-layer') as HTMLElement;
+
+    this.router.events
+      .pipe(filter(e => e instanceof NavigationEnd))
+      .subscribe((e: any) => {
+        const url = e.url;
+        const needsParticles = 
+          url === '/' || url === '/ecosystem';
+
+        if (needsParticles && !this.particlesActive) {
+          this.initThree();
+          this.particlesActive = true;
+        } else if (!needsParticles && this.particlesActive) {
+          cancelAnimationFrame(this.animationId);
+          this.renderer?.dispose();
+          this.particlesActive = false;
+        }
+      });
+
+    /* Initial load */
+    const initialUrl = this.router.url;
+    const needsParticles = 
+      initialUrl === '/' || initialUrl === '/ecosystem';
+    if (needsParticles) {
+      this.initThree();
+      this.particlesActive = true;
+    }
+  }
+
+  private particlesActive = false;
+
+The CSS gradient (.bg-gradient-layer with orbs) 
+stays visible on ALL routes always — never removed.
+Only the canvas toggles.
+
+════════════════════════════════════════════════════
+SECTION 2 — SHARED PAGE HEADER COMPONENT
+════════════════════════════════════════════════════
+
+Create a new reusable component: PageHeaderComponent
+selector: app-page-header
+
+This header appears on ALL pages except landing ('/').
+It has the same visual style as ecosystem's top bar —
+transparent with backdrop blur, becomes slightly more
+opaque on scroll.
+
+It receives inputs:
+  @Input() title: string         — page title
+  @Input() subtitle: string = '' — optional subtitle
+  @Input() showBack: boolean = true
+
+HTML:
+
+<div class="page-header" [class.scrolled]="isScrolled">
+  <div class="page-header-inner">
+
+    <!-- LEFT: Back button -->
+    <button 
+      *ngIf="showBack"
+      class="back-btn" 
+      (click)="goBack()">
+      <span class="back-arrow">←</span>
+      <span class="back-label">Back</span>
+    </button>
+    <div *ngIf="!showBack" class="back-placeholder"></div>
+
+    <!-- CENTER: Title block -->
+    <div class="title-block">
+      <h1 class="page-title">{{ title }}</h1>
+      <p class="page-subtitle" *ngIf="subtitle">
+        {{ subtitle }}
+      </p>
+    </div>
+
+    <!-- RIGHT: spacer for balance -->
+    <div class="header-spacer"></div>
+
+  </div>
+</div>
+
+SCSS:
+
+:host {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+}
+
+.page-header {
+  width: 100%;
+  background: transparent;
+  backdrop-filter: blur(0px);
+  border-bottom: 1px solid transparent;
+  transition:
+    background 0.4s ease,
+    backdrop-filter 0.4s ease,
+    border-color 0.4s ease;
+
+  &.scrolled {
+    background: rgba(4, 12, 10, 0.82);
+    backdrop-filter: blur(16px) saturate(1.3);
+    border-bottom-color: rgba(0, 200, 140, 0.08);
+  }
+}
+
+.page-header-inner {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.2rem 5vw;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(255,255,255,0.55);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0;
+  transition: color 0.2s ease;
+  width: fit-content;
+
+  &:hover {
+    color: #ffffff;
+    .back-arrow { transform: translateX(-5px); }
+  }
+}
+
+.back-arrow {
+  font-size: 1rem;
+  font-weight: 700;
+  display: inline-block;
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1);
+}
+
+.back-placeholder {
+  /* invisible spacer same width as back button */
+  width: 80px;
+}
+
+.title-block {
+  text-align: center;
+}
+
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.page-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 300;
+  color: rgba(0, 200, 140, 0.55);
+  letter-spacing: 0.06em;
+  margin: 4px 0 0;
+}
+
+.header-spacer {
+  /* balances back button — keeps title centered */
+}
+
+@media (max-width: 640px) {
+  .page-header-inner {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+  }
+  .title-block {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+  .header-spacer { display: none; }
+  .back-placeholder { display: none; }
+}
+
+TypeScript:
+
+import {
+  Component, Input, OnInit, HostListener
+} from '@angular/core';
+import { Router } from '@angular/router';
+import { Location } from '@angular/common';
+
+@Component({
+  selector: 'app-page-header',
+  templateUrl: './page-header.component.html',
+  styleUrls: ['./page-header.component.scss']
+})
+export class PageHeaderComponent {
+
+  @Input() title = '';
+  @Input() subtitle = '';
+  @Input() showBack = true;
+
+  isScrolled = false;
+
+  constructor(
+    private router: Router,
+    private location: Location
+  ) {}
+
+  @HostListener('window:scroll')
+  onScroll(): void {
+    this.isScrolled = window.scrollY > 40;
+  }
+
+  goBack(): void {
+    /* Check if there is Angular navigation history */
+    const state = this.location.getState() as any;
+    const hasHistory = state && state.navigationId > 1;
+
+    if (hasHistory) {
+      /* There is a previous Angular route — go back */
+      this.location.back();
+    } else {
+      /* No history — user came directly to this URL.
+         Navigate to landing and scroll to cards section */
+      this.router.navigate(['/'], {
+        fragment: 'discover'
+      }).then(() => {
+        /* Small delay for page to render, then scroll */
+        setTimeout(() => {
+          const el = document.getElementById('discover');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 400);
+      });
+    }
+  }
+}
+
+════════════════════════════════════════════════════
+SECTION 3 — LANDING PAGE: ADD ANCHOR TO CARDS SECTION
+════════════════════════════════════════════════════
+
+In landing.component.html, find the cards/discover 
+section and add id="discover":
+
+<section class="cards-section" id="discover" #cardsSection>
+  ...
+</section>
+
+This is the scroll target when back button navigates
+to landing with fragment 'discover'.
+
+════════════════════════════════════════════════════
+SECTION 4 — ADD HEADER TO EACH PAGE
+════════════════════════════════════════════════════
+
+### Persona list page (persona.component.html)
+
+Remove any existing back button or header.
+Add at the very top:
+
+<app-page-header
+  title="Digital Workspace"
+  subtitle="Choose your perspective">
+</app-page-header>
+
+<div class="persona-content">
+  <!-- existing content -->
+</div>
+
+In persona.component.scss:
+  Remove any padding-top that compensated for old header.
+  The sticky header handles its own spacing.
+
+  :host {
+    display: block;
+    min-height: 100vh;
+    background: transparent;
+  }
+
+  .persona-content {
+    padding: 2rem 5vw 4rem;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+---
+
+### Journey/detail page (journey.component.html or 
+    wherever STEP 1 OF 2 lives)
+
+Remove existing "← ASK FIDBOT" and step indicator 
+from the very top. Add page header:
+
+<app-page-header
+  title="{{ currentJourneyTitle }}"
+  subtitle="{{ currentPersonaLabel }}">
+</app-page-header>
+
+Keep the STEP X OF Y indicator — move it BELOW 
+the header, not replace it.
+
+In journey.component.scss:
+  :host {
+    display: block;
+    min-height: 100vh;
+    background: transparent;
+  }
+
+---
+
+### Ecosystem page (ecosystem.component.html)
+
+Remove the existing .eco-topbar completely.
+Replace with:
+
+<app-page-header
+  title="HR Digital Ecosystem"
+  subtitle="{{ regionLabel }} · {{ totalSystems }} systems active">
+</app-page-header>
+
+<div class="eco-content">
+  <!-- workday banner, connector, phases grid -->
+</div>
+
+In ecosystem.component.scss:
+  Remove .eco-topbar, .eco-title, .eco-subtitle styles
+  — they are now handled by PageHeaderComponent.
+
+  .eco-content {
+    padding: 1.5rem 5vw 4rem;
+  }
+
+════════════════════════════════════════════════════
+SECTION 5 — RULES
+════════════════════════════════════════════════════
+
+1. location.getState().navigationId > 1 is the correct
+   Angular way to check if there is navigation history.
+   Do NOT use window.history.length — that includes
+   browser history from other sites and gives wrong results.
+
+2. The CSS gradient (.bg-gradient-layer) stays on ALL
+   routes always. Only the canvas element toggles.
+   Never remove the gradient layer from any route.
+
+3. app-page-header is sticky (position: sticky, top: 0)
+   NOT fixed. Fixed headers require padding-top on every
+   page to prevent content hiding behind them.
+   Sticky headers scroll with the page until they hit
+   the top, then stick — no padding needed.
+
+4. id="discover" on the cards section in landing.component
+   is mandatory. Without it the scrollIntoView call
+   in goBack() silently fails and user lands at page top.
+
+5. The 400ms setTimeout before scrollIntoView is required.
+   Router.navigate() is async — the DOM needs time to
+   render the landing page before scrollIntoView can
+   find the element. Without the delay it always fails.
+
+6. Do NOT add any solid background to :host on any
+   page component. background: transparent is mandatory
+   everywhere so the global CSS gradient shows through.
+
+7. Remove the existing back button from ecosystem
+   .eco-topbar — it is now handled by app-page-header.
+   Do not have two back buttons on ecosystem.
+
+8. On landing page ('/') — app-page-header is NEVER
+   rendered. The landing page manages its own header-less
+   hero. Do not add app-page-header to landing.component.
+
+════════════════════════════════════════════════════
+DELIVERABLE — show all files completely
+════════════════════════════════════════════════════
+
+1.  background.component.ts    — route-aware particle toggle
+2.  background.component.html  — canvas with display toggle
+3.  page-header.component.html — new shared component
+4.  page-header.component.scss — new shared component
+5.  page-header.component.ts   — new shared component
+6.  landing.component.html     — id="discover" on cards section
+7.  persona.component.html     — app-page-header added
+8.  persona.component.scss     — padding/bg cleanup
+9.  journey.component.html     — app-page-header added
+    (or whatever the STEP 1 OF 2 component is called)
+10. journey.component.scss     — bg cleanup
+11. ecosystem.component.html   — eco-topbar replaced
+12. ecosystem.component.scss   — eco-topbar styles removed
+13. app.module.ts              — PageHeaderComponent declared
+```
+
+---
+
+**The key decision here is `location.getState().navigationId > 1`** — this is the only reliable way in Angular to know if there's a previous route in the navigation stack. `navigationId === 1` means this is the first page the user landed on — so clicking back would exit the app. Anything greater than 1 means there's Angular history to go back to. That's what routes the user correctly to the cards section when they open `/ecosystem` directly in a new tab vs when they click into it from the landing page.
