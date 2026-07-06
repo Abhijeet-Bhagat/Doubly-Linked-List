@@ -1,0 +1,48 @@
+In my Angular floating-persona-btn component, the persona label text inside 
+the circular ring button is breaking mid-word — e.g. "Associate" renders as 
+"Associat" on one line and "e" on the next. I need the full role name to fit 
+on a single line inside the ring at ALL browser zoom levels (50%–150%) and 
+all viewport widths.
+
+Root causes to address (I've diagnosed these — please fix all of them, don't 
+just patch one):
+
+1. WORD BREAKING: The label wraps mid-word. `white-space: nowrap` alone is 
+   NOT enough because a separate word-break mechanism is splitting the word. 
+   Add `word-break: keep-all` and `overflow-wrap: normal` to the label so a 
+   single word can never be split across lines. Also remove any `max-width` 
+   constraint on the label element — a max-width narrower than the word 
+   forces the break.
+
+2. MEDIA QUERY OVERRIDES: The component has `@media (max-width: 1280px)` and 
+   `@media (max-width: 768px)` blocks that each redefine 
+   `.persona-label-role` font-size (e.g. 0.72rem). Browser zoom changes the 
+   effective CSS viewport width (e.g. 150% zoom on a 1920px screen = 1280 
+   CSS px), so these media queries silently activate at certain zoom levels 
+   and override the base font-size. You MUST apply the single-line rules 
+   (white-space: nowrap, word-break: keep-all) AND an appropriately small 
+   font-size INSIDE every media query block too — not just the base rule — 
+   otherwise the fix disappears at those zoom levels.
+
+3. CIRCLE SIZE: If the longest role name ("HR Partner", 10 chars) still 
+   can't fit on one line at a readable font size, increase the ring size to 
+   accommodate it. The structure is: .persona-float (outer container) 
+   contains an SVG .ring-svg (viewBox 0 0 120 120, scales automatically via 
+   width/height 100%) and an .inner-circle div where the label sits. 
+   Increase .persona-float and .inner-circle dimensions proportionally 
+   across the base rule AND each media query so the text always fits. The 
+   SVG needs no viewBox change since it scales with its container.
+
+Requirements for the fix:
+- The longest persona name must fit on ONE line inside the ring at 50%, 67%, 
+  100%, 125%, and 150% zoom.
+- Font size should stay as large as possible while still fitting — don't 
+  shrink it more than necessary.
+- Give me the corrected .scss with the base rule and ALL media query blocks 
+  updated consistently.
+- Add a brief comment explaining that word-break: keep-all (not just 
+  white-space: nowrap) is what prevents mid-word splitting, and that the 
+  media query blocks must be kept in sync because zoom activates them.
+
+The persona names are: "Associate" (9 chars), "Manager" (7 chars), 
+"HR Partner" (10 chars).
