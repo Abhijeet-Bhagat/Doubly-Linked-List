@@ -1,0 +1,312 @@
+I can see exactly what happened. The browser is at **67% zoom** which tells me the fixes broke the layout at normal scale, and the parallax background is gone from the landing page too — the teal gradient light source has disappeared, replaced by plain black.
+
+**What went wrong:**
+- The `background: transparent !important` fixes that were meant for persona page got applied too broadly — they wiped the background from the landing page sections too
+- The `router-outlet + * { background: transparent !important }` in styles.scss or app.component.scss is now making the landing page's own background transparent, which removes the gradient
+- The `overflow: hidden` on `.hero-section` that was added to fix the scroll bleed is now clipping the Three.js canvas or the gradient layer
+
+**Two separate problems to fix:**
+
+---
+
+## The Prompt
+
+```
+Two targeted fixes only. Do not touch anything else.
+No stubs. No TODOs.
+
+════════════════════════════════════════════════════
+FIX 1 — RESTORE LANDING PAGE PARALLAX + BACKGROUND
+════════════════════════════════════════════════════
+
+The teal gradient and particles have disappeared from
+the landing page. This was caused by overly broad
+background: transparent rules added in the last fix.
+
+### Step 1 — Remove the router-outlet rule
+
+In styles.scss and app.component.scss, DELETE this:
+
+  router-outlet + * {
+    background: transparent !important;
+  }
+
+This rule was making the landing page component
+itself transparent, which is wrong. The landing page
+needs to sit above the background component but
+it should NOT have its own background — it relies
+on the global background component beneath it.
+
+### Step 2 — Restore background.component
+
+In background.component.scss confirm :host is:
+
+  :host {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    display: block;
+    pointer-events: none;
+  }
+
+And .bg-gradient-layer has the full gradient:
+
+  .bg-gradient-layer {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(
+        ellipse 60% 75% at 18% 52%,
+        rgba(0, 140, 100, 0.22) 0%,
+        transparent 65%
+      ),
+      radial-gradient(
+        ellipse 28% 38% at 18% 52%,
+        rgba(0, 180, 120, 0.10) 0%,
+        transparent 42%
+      ),
+      radial-gradient(
+        ellipse 75% 55% at 50% 115%,
+        rgba(0, 80, 60, 0.14) 0%,
+        transparent 55%
+      ),
+      #040C0A;
+  }
+
+If this gradient was cleared or changed — restore it
+exactly as above. This is the teal light source.
+
+### Step 3 — Fix landing component background
+
+In landing.component.scss:
+
+  :host {
+    display: block;
+    background: transparent;  /* NO !important here */
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Remove overflow: hidden from hero-section —
+     it was clipping the background canvas */
+  .hero-section {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    min-height: 100dvh;
+    background: transparent;
+    overflow: visible;         /* CHANGE from hidden back
+                                  to visible */
+    z-index: 1;
+  }
+
+### Step 4 — Fix scroll bleed WITHOUT overflow hidden
+
+The scroll bleed fix (hero text showing through cards)
+must be done differently since overflow:hidden on
+hero-section was removed.
+
+Instead clip only the text content, not the section:
+
+  .hero-content {
+    position: absolute;
+    clip-path: inset(0);      /* clips content to
+                                  hero-content bounds
+                                  without affecting canvas */
+  }
+
+  /* Cards section blocks hero text via z-index
+     and solid background — not overflow */
+  .cards-section,
+  #discover {
+    position: relative;
+    z-index: 20;              /* above hero z-index: 1 */
+    background:
+      radial-gradient(
+        ellipse 60% 75% at 18% 52%,
+        rgba(0, 140, 100, 0.18) 0%,
+        transparent 65%
+      ),
+      #040C0A;                /* solid base prevents bleed */
+  }
+
+  .stats-section,
+  [class*="stat-row"],
+  [class*="stats-wrap"] {
+    position: relative;
+    z-index: 20;
+    background: #040C0A;
+  }
+
+### Step 5 — Confirm app.component z-index stack
+
+In app.component.scss:
+
+  /* Background sits at bottom */
+  app-background {
+    z-index: 0;
+  }
+
+  /* Page content sits above */
+  .page-wrapper {
+    position: relative;
+    z-index: 10;
+    background: transparent;  /* NO solid background */
+    min-height: 100vh;
+  }
+
+  /* NO !important anywhere in this file */
+
+════════════════════════════════════════════════════
+FIX 2 — LANDING PAGE LAYOUT BROKEN ON LAPTOP
+════════════════════════════════════════════════════
+
+At normal zoom (100%) on laptop the hero section
+is malformed — text and body overlapping.
+
+The issue: hero-content uses position: absolute
+with top: 38vh. On laptop at 1366px wide the
+38vh puts content too low and body text bleeds
+outside the section.
+
+In landing.component.scss:
+
+/* Desktop — large screens 1441px+ */
+.hero-content {
+  position: absolute;
+  top: 38vh;
+  padding: 0 6vw;
+}
+
+/* Laptop — 1280px to 1440px */
+@media (max-width: 1440px) {
+  .hero-content {
+    top: 28vh;          /* higher up on laptop */
+  }
+
+  .h-solid {
+    font-size: clamp(2.5rem, 8vw, 8rem);
+  }
+
+  .h-ghost {
+    font-size: clamp(1.6rem, 5vw, 5rem);
+    margin-left: 8%;
+  }
+
+  .h-accent {
+    font-size: clamp(2rem, 7vw, 7rem);
+  }
+
+  .hero-body {
+    font-size: 0.9rem;
+    max-width: 420px;
+    margin-top: 1.5rem;
+    margin-bottom: 1.8rem;
+  }
+
+  .hero-eyebrow {
+    margin-bottom: 1.8rem;
+  }
+}
+
+/* Laptop smaller — 1280px */
+@media (max-width: 1280px) {
+  .hero-content {
+    top: 22vh;
+  }
+
+  .h-solid  { font-size: clamp(2.2rem, 7.5vw, 6rem); }
+  .h-ghost  {
+    font-size: clamp(1.4rem, 4.5vw, 3.8rem);
+    margin-left: 7%;
+  }
+  .h-accent { font-size: clamp(1.8rem, 6.5vw, 5.5rem); }
+
+  .hero-body {
+    font-size: 0.85rem;
+    max-width: 380px;
+  }
+}
+
+/* Switch to flow layout below 768px */
+@media (max-width: 768px) {
+  .hero-section {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    padding: 80px 0 60px;
+  }
+
+  .hero-content {
+    position: relative;
+    top: auto;
+    padding: 0 6vw;
+    width: 100%;
+  }
+
+  .h-solid  { font-size: clamp(2rem, 10vw, 4rem); }
+  .h-ghost  {
+    font-size: clamp(1.3rem, 7vw, 2.5rem);
+    margin-left: 5%;
+  }
+  .h-accent { font-size: clamp(1.7rem, 9vw, 3.5rem); }
+}
+
+════════════════════════════════════════════════════
+RULES
+════════════════════════════════════════════════════
+
+1. NEVER use background: transparent !important
+   in styles.scss or app.component.scss globally.
+   It must only appear on specific component :host
+   selectors that need it — never as a catch-all.
+
+2. overflow: visible on .hero-section is correct.
+   The canvas background is rendered by a separate
+   fixed component behind everything — it does not
+   need to be inside .hero-section to be visible.
+   overflow: hidden on .hero-section hides the canvas.
+
+3. clip-path: inset(0) on .hero-content clips the
+   text content to its own bounds without affecting
+   the canvas or background layers. This is the
+   correct way to prevent text bleed without
+   touching overflow on the parent section.
+
+4. Cards section z-index: 20 with solid background
+   is what prevents hero text from showing through
+   on scroll — not overflow: hidden on hero-section.
+   The solid background covers the hero content
+   as the user scrolls it into view.
+
+5. Do NOT use !important anywhere except on
+   persona.component.scss :host where Angular
+   view encapsulation requires it.
+
+════════════════════════════════════════════════════
+DELIVERABLE
+════════════════════════════════════════════════════
+
+1. styles.scss
+   — remove router-outlet + * rule
+
+2. app.component.scss
+   — remove router-outlet + * rule
+   — confirm page-wrapper is transparent
+
+3. background.component.scss
+   — confirm gradient is fully restored
+   — confirm z-index: 0 on :host
+
+4. landing.component.scss
+   — hero-section overflow: visible
+   — hero-content clip-path
+   — laptop breakpoints 1440px + 1280px
+   — cards-section z-index + background
+```
+
+---
+
+The critical insight here: **`overflow: hidden` on a section clips everything that overflows it — including the fixed-position background canvas that lives outside the DOM hierarchy.** Fixed elements are positioned relative to the viewport, not their parent — but `overflow: hidden` on any ancestor still clips them in some browsers (especially Chrome). Removing it and using `clip-path: inset(0)` on the content instead is the correct architectural fix — it clips only the text, never the background.
