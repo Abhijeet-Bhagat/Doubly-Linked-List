@@ -1,0 +1,36 @@
+My chatbot widget has an invisible wrapper div (.chatbot-wrapper) that stays 
+in the DOM even when the chat is collapsed. This wrapper overlaps other UI 
+(a persona switcher menu and journey cards) and silently blocks clicks on 
+them, because it's a large invisible hitbox sitting on top. This must be 
+fixed so it works at ALL browser zoom levels (50%–150%) and all viewport 
+sizes, not just my current one.
+
+Requirements:
+
+1. Set `pointer-events: none` on .chatbot-wrapper at all times, so the 
+   wrapper never intercepts clicks meant for elements behind or around it, 
+   no matter how large its box is.
+
+2. Set `pointer-events: all` ONLY on the actually-interactive parts:
+   - the collapsed "Ask CST" pill/button
+   - the chat toggle button
+   - the expanded panel (.chatbot-panel.open) and all its children 
+     (messages, input, send button)
+
+3. Do NOT fix this by shrinking the wrapper's width/height. A dimension-based 
+   fix breaks at different zoom levels and content lengths. The real fix is 
+   the pointer-events layering above, which is zoom-invariant because it 
+   doesn't depend on box size at all.
+
+4. Audit z-index stacking: the wrapper uses z-index: 9999, higher than other 
+   floating elements (e.g. persona button at 500). Add a comment documenting 
+   the z-index scale across all fixed/floating components so future additions 
+   don't collide.
+
+5. Verify the fix using browser ZOOM specifically (not just window resize), 
+   since zoom changes the effective viewport differently. Confirm no 
+   invisible overlay blocks clicks at 50%, 67%, 100%, 125%, and 150%.
+
+Show me the corrected .scss for the wrapper, pill, and panel, plus a short 
+comment explaining why pointer-events: none on the wrapper + pointer-events: 
+all on visible children is the correct, zoom-proof pattern.
