@@ -1,0 +1,420 @@
+Clear. Two separate issues from the screenshots.
+
+**Image 1 — Scroll transition bleed:**
+The hero section text ("The infrastructure that powers every associate's story — from first day to farewell") is bleeding through/overlapping the next section as you scroll. The cards section is sliding up but the hero text is still visible behind it. This is a z-index and background issue — the cards section has no solid background so the hero below shows through during scroll.
+
+**Image 2 — Persona page:**
+- "Associate" text in the ring is cut off — shows "Associat / e" broken across two lines
+- Ring is too small for the text
+- No parallax background — flat dark grey, particles not showing through
+- The floating button is being clipped by the viewport edge on the right
+
+---
+
+## The Prompt
+
+```
+Fix these three specific issues. No other changes.
+No stubs. No TODOs.
+
+════════════════════════════════════════════════════
+FIX 1 — HERO TEXT BLEEDING THROUGH ON SCROLL
+════════════════════════════════════════════════════
+
+When scrolling from hero to cards section, the hero
+text shows through the cards section background.
+
+Root cause: sections below the hero have
+background: transparent — during scroll the browser
+paints them over the hero but text shows through.
+
+Fix in landing.component.scss:
+
+### Step 1 — Give hero section a proper z-index stack
+
+.hero-section {
+  position: relative;
+  z-index: 1;
+}
+
+### Step 2 — Cards section needs a solid backing
+  
+Find the cards/discover section and add:
+
+.cards-section,
+#discover,
+[class*="cards-section"],
+[class*="discover"] {
+  position: relative;
+  z-index: 2;           /* sits above hero */
+  
+  /* Solid background — gradient matching the
+     global bg so it feels seamless but blocks
+     hero text from showing through */
+  background:
+    radial-gradient(
+      ellipse 60% 75% at 18% 52%,
+      rgba(0, 140, 100, 0.18) 0%,
+      transparent 65%
+    ),
+    #040C0A;
+
+  /* Fade in at the top edge so transition 
+     from hero looks smooth not hard-cut */
+  &::before {
+    content: '';
+    position: absolute;
+    top: -80px;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      #040C0A 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+### Step 3 — Stats section same treatment
+
+.stats-section,
+[class*="stat-row"],
+[class*="stats-wrap"] {
+  position: relative;
+  z-index: 2;
+  background: #040C0A;
+}
+
+### Step 4 — Footer same
+
+footer,
+app-footer,
+[class*="footer"] {
+  position: relative;
+  z-index: 2;
+  background: rgba(4, 12, 10, 0.95);
+}
+
+### Step 5 — Hero text must not overflow its section
+
+.hero-section {
+  overflow: hidden;   /* clips hero content to its 
+                         own section boundary */
+}
+
+/* Exception — do NOT clip the scroll indicator */
+.scroll-indicator {
+  overflow: visible;
+}
+
+════════════════════════════════════════════════════
+FIX 2 — PERSONA PAGE PARALLAX BACKGROUND
+════════════════════════════════════════════════════
+
+The persona page has a flat dark grey background.
+The global CSS gradient is not showing through.
+
+In persona.component.scss:
+
+### Remove any solid background
+
+/* Find and DELETE any of these: */
+:host {
+  background: #1a1a2a;     /* DELETE */
+  background: #0a0a0a;     /* DELETE */
+  background: #111;        /* DELETE */
+  background-color: ...;   /* DELETE any solid bg */
+}
+
+/* Replace :host with only: */
+:host {
+  display: block;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: transparent;  /* ONLY this */
+  position: relative;
+  z-index: 10;  /* above background component */
+}
+
+### Add a subtle section gradient so content 
+### areas read against the particle background
+
+.persona-content,
+[class*="persona-content"],
+[class*="workspace-content"] {
+  position: relative;
+
+  /* Subtle dark backing so text is readable
+     but background still shows through */
+  &::before {
+    content: '';
+    position: fixed;  /* fixed so it covers full
+                         viewport as user scrolls */
+    inset: 0;
+    background:
+      radial-gradient(
+        ellipse 60% 75% at 18% 52%,
+        rgba(0, 140, 100, 0.15) 0%,
+        transparent 65%
+      ),
+      rgba(4, 12, 10, 0.55);  /* semi-transparent 
+                                   dark overlay */
+    pointer-events: none;
+    z-index: -1;
+  }
+}
+
+/* Journey chips need enough contrast against 
+   the now-visible background */
+[class*="journey-chip"],
+[class*="chip"],
+[class*="pill"] {
+  background: rgba(4, 12, 10, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 200, 140, 0.18);
+}
+
+/* Search/input bar */
+[class*="search-bar"],
+[class*="search-input"],
+input {
+  background: rgba(4, 12, 10, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 200, 140, 0.15);
+}
+
+════════════════════════════════════════════════════
+FIX 3 — FLOATING PERSONA RING: BIGGER + TEXT FITS
+════════════════════════════════════════════════════
+
+In floating-persona-btn.component.scss:
+
+### Increase overall size
+
+/* Desktop — was 110px, increase to 130px */
+.persona-float {
+  width: 130px;
+  height: 130px;
+}
+
+/* Inner circle — was 82px, increase to 98px */
+.inner-circle {
+  width: 98px;
+  height: 98px;
+}
+
+### Fix text overflow — "Associate" was breaking
+
+/* "Explore as" label */
+.persona-label-top {
+  font-size: 0.48rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;  /* never breaks */
+  color: rgba(0, 200, 140, 0.55);
+}
+
+/* Role name — must fit on one line */
+.persona-label-role {
+  font-family: 'Syne', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  white-space: nowrap;     /* single line always */
+  overflow: visible;       /* don't clip */
+  max-width: none;         /* remove max-width */
+  -webkit-line-clamp: unset; /* remove clamp */
+  display: block;          /* not -webkit-box */
+  padding: 0 4px;
+
+  /* If name is long like "HR Partner", 
+     scale down slightly */
+  letter-spacing: -0.02em;
+}
+
+/* For long persona names specifically */
+/* When active persona is HR Partner */
+.persona-label-role.long-name {
+  font-size: 0.65rem;
+  letter-spacing: -0.03em;
+}
+
+### In floating-persona-btn.component.ts
+### Detect long names and add class:
+
+get isLongName(): boolean {
+  return this.currentPersona.length > 8;
+}
+
+### In HTML update the role span:
+
+<span class="persona-label-role"
+  [class.long-name]="isLongName">
+  {{ currentPersona }}
+</span>
+
+### Fix viewport clipping on right edge
+
+/* Currently clipped because right: 2.5rem
+   with 130px width pushes it off on some screens */
+
+:host {
+  position: fixed;
+  bottom: 2.5rem;
+  right: 2.5rem;
+  z-index: 500;
+
+  /* Ensure it never goes off screen */
+  max-width: calc(100vw - 5rem);
+}
+
+/* Menu opens with enough clearance */
+.persona-menu {
+  right: 0;
+  bottom: 145px;  /* was 120px — account for bigger button */
+  width: 250px;   /* was 240px */
+
+  /* Prevent menu going off right edge on laptop */
+  max-width: calc(100vw - 3rem);
+}
+
+### SVG rings — scale with button size
+
+.ring-svg {
+  /* viewBox is 120x120, button is now 130px
+     SVG auto-scales — no changes needed.
+     But update transform-origin for larger size: */
+}
+
+/* These transform-origins are relative to viewBox
+   not element size — keep at 60px 60px */
+.rotating-ring {
+  transform-origin: 60px 60px; /* unchanged */
+}
+.counter-ring {
+  transform-origin: 60px 60px; /* unchanged */
+}
+
+### Laptop responsive (1280px)
+
+@media (max-width: 1280px) {
+  .persona-float {
+    width: 118px;
+    height: 118px;
+  }
+
+  .inner-circle {
+    width: 88px;
+    height: 88px;
+  }
+
+  .persona-label-role {
+    font-size: 0.72rem;
+  }
+}
+
+### Mobile
+
+@media (max-width: 768px) {
+  .persona-float {
+    width: 100px;
+    height: 100px;
+  }
+
+  .inner-circle {
+    width: 74px;
+    height: 74px;
+  }
+
+  .persona-label-top {
+    font-size: 0.42rem;
+  }
+
+  .persona-label-role {
+    font-size: 0.62rem;
+  }
+
+  .persona-menu {
+    bottom: 115px;
+    width: 230px;
+  }
+}
+
+@media (max-width: 480px) {
+  :host {
+    bottom: 1rem;
+    right: 50%;
+    transform: translateX(50%);
+    max-width: 100px;
+  }
+
+  .persona-menu {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 110px;
+    width: 220px;
+  }
+}
+
+════════════════════════════════════════════════════
+RULES
+════════════════════════════════════════════════════
+
+1. .hero-section { overflow: hidden } clips hero
+   content to its own boundary — this is what
+   prevents text bleeding into the next section
+   during scroll. Do NOT remove this.
+
+2. The ::before fade on .cards-section uses 
+   position: absolute with top: -80px — this
+   creates the smooth gradient transition between
+   hero and cards without a hard visual cut.
+   The -80px pulls it above the section boundary.
+
+3. background: transparent on persona :host is
+   mandatory. The semi-transparent overlay goes
+   on .persona-content::before with position: fixed
+   NOT on :host — fixed positioning means it covers
+   the full viewport regardless of scroll position.
+
+4. white-space: nowrap on .persona-label-role is
+   the correct fix for "Associat / e" breaking.
+   Do NOT use max-width to constrain it — that
+   caused the break. Remove max-width entirely.
+
+5. transform-origin on SVG rings stays at 60px 60px
+   (center of the 120x120 viewBox) regardless of
+   the CSS element size. SVG transforms are in
+   viewBox coordinate space, not element space.
+
+════════════════════════════════════════════════════
+DELIVERABLE
+════════════════════════════════════════════════════
+
+1. landing.component.scss
+   — section z-index + background fixes
+   — hero overflow: hidden
+
+2. persona.component.scss
+   — background: transparent on :host
+   — content overlay for readability
+
+3. floating-persona-btn.component.scss
+   — larger ring (130px → 98px inner)
+   — text nowrap fix
+   — responsive sizes
+
+4. floating-persona-btn.component.html
+   — long-name class binding on role span
+
+5. floating-persona-btn.component.ts
+   — isLongName getter
+```
+
+---
+
+**The most important fix is `overflow: hidden` on `.hero-section`.** Without it, the hero's absolutely-positioned text elements extend beyond the section's boundary in the DOM — they technically exist in the space where the cards section renders. During scroll, the browser paints the cards section on top but the hero text clips through because it has no containing boundary. `overflow: hidden` creates that boundary and the bleed stops immediately.
