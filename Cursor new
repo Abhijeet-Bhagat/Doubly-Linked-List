@@ -1,0 +1,42 @@
+Replace the current custom cursor implementation in my Angular app with a 
+fairy-dust particle trail effect. Requirements:
+
+1. KEEP the native system arrow cursor visible everywhere (do NOT hide it 
+   with cursor: none, and remove any custom cursor shape like the current 
+   teardrop clip-path dot).
+
+2. Add a full-screen fixed canvas (100vw x 100vh, pointer-events: none, 
+   high z-index like 99999) that renders a particle trail following the 
+   mouse.
+
+3. On mousemove, spawn a few small particles (size ~1-3px) at the cursor 
+   position with slight random velocity and a gentle upward drift (like 
+   dust/sparkle floating up).
+
+4. Each particle should cycle through hues (rainbow color cycling, hue 
+   increasing by ~3-4 degrees per spawn batch, wrapping at 360) using 
+   hsla() colors, with a soft glow via ctx.shadowBlur + shadowColor.
+
+5. Particles should fade out over ~1 second (decrease life/opacity and 
+   shrink size each frame) and be removed once fully faded.
+
+6. Use a trailing/fade effect on the canvas itself: instead of hard 
+   clearRect each frame, use globalCompositeOperation = 'destination-out' 
+   with a low-alpha black fill to fade the previous frame, then switch to 
+   'lighter' composite mode when drawing new particles so overlapping 
+   sparkles glow brighter.
+
+7. Drive the whole thing with requestAnimationFrame in an Angular 
+   component (AfterViewInit to set up canvas + listeners, OnDestroy to 
+   clean up mousemove/resize listeners and cancelAnimationFrame).
+
+8. Handle window resize to keep canvas dimensions matching viewport.
+
+9. Disable/hide this effect on touch/stylus devices via 
+   @media (pointer: coarse) — system cursor takes over there, no canvas.
+
+Please generate the .ts (with a Particle interface, spawnParticles(), and 
+animate() methods), .html (just the canvas element), and .scss (canvas 
+positioning + `cursor: auto !important` on host to guarantee the native 
+arrow isn't overridden elsewhere) for an Angular standalone component 
+called CustomCursorComponent, selector app-custom-cursor.
