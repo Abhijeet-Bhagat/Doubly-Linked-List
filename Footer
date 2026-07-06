@@ -1,0 +1,131 @@
+In the global footer component, make these changes only.
+Do not touch anything else.
+
+════════════════════════════════════════
+FOOTER HTML — replace existing content
+════════════════════════════════════════
+
+<footer class="global-footer">
+  <div class="footer-inner">
+
+    <!-- LEFT: Fidelity logo -->
+    <div class="footer-logo">
+      <img 
+        src="assets/image.png" 
+        alt="Fidelity" 
+        class="fidelity-logo">
+    </div>
+
+    <!-- RIGHT: Text -->
+    <p class="footer-text">
+      Made with curiosity by the 
+      <span class="footer-highlight">CST Team</span> 
+      · FMR India
+    </p>
+
+  </div>
+</footer>
+
+════════════════════════════════════════
+FOOTER SCSS — replace existing styles
+════════════════════════════════════════
+
+.global-footer {
+  width: 100%;
+  padding: 1.2rem 5vw;
+  border-top: 1px solid rgba(0, 200, 140, 0.06);
+  background: rgba(4, 12, 10, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+.footer-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.fidelity-logo {
+  height: 22px;
+  width: auto;
+  object-fit: contain;
+  opacity: 0.75;
+  filter: brightness(0) invert(1);
+  /* Makes any colored logo render as white
+     to match the dark page palette.
+     Remove this filter if logo is already 
+     white or you want original colors. */
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.footer-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.28);
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.footer-highlight {
+  color: rgba(0, 200, 140, 0.55);
+  font-weight: 400;
+}
+
+/* Mobile — stack if viewport too narrow */
+@media (max-width: 480px) {
+  .footer-inner {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  .footer-text {
+    text-align: center;
+    white-space: normal;
+  }
+}
+
+════════════════════════════════════════
+RULES
+════════════════════════════════════════
+
+1. src="assets/image.png" — exact path, no changes.
+
+2. filter: brightness(0) invert(1) renders any logo
+   as pure white. If the Fidelity logo is already
+   white or transparent PNG on dark background,
+   remove the filter line entirely.
+
+3. white-space: nowrap on .footer-text keeps the 
+   single line intact on desktop. Only wraps on 
+   mobile via the media query.
+
+4. Remove ALL other existing footer content —
+   Angular version labels, system counts, Digital 
+   Journey 2026 text, any second row. Single row only.
+
+5. Do not change footer position (fixed/sticky/static)
+   — keep whatever it currently is.
+
+════════════════════════════════════════
+DELIVERABLE
+════════════════════════════════════════
+
+1. footer.component.html — complete
+2. footer.component.scss — complete
