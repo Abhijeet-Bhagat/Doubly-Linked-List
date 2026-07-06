@@ -1,0 +1,381 @@
+Fix these three issues in the persona component and 
+floating persona button. No other changes.
+No stubs. No TODOs.
+
+════════════════════════════════════════════════════
+FIX 1 — PARALLAX BACKGROUND NOT SHOWING ON PERSONA PAGE
+════════════════════════════════════════════════════
+
+The page is flat dark grey — the global teal gradient
+and particles are not visible. Background: transparent
+on :host is not enough because something inside the
+component tree is setting a solid background.
+
+Do ALL of the following steps together:
+
+### Step 1 — Nuclear transparent on :host
+
+In persona.component.scss:
+
+:host {
+  display: block;
+  background: transparent !important;
+  background-color: transparent !important;
+  min-height: 100vh;
+  position: relative;
+  z-index: 10;
+}
+
+### Step 2 — Find and remove every solid background
+
+Search persona.component.scss for ANY of these
+and DELETE them entirely:
+
+  background: #
+  background-color: #
+  background: rgb
+  background: rgba(0,0,0
+  background: rgba(10
+  background: rgba(4
+  background: rgba(6
+  background: linear-gradient(to bottom, #0
+  background: var(--dj-bg)
+
+EXCEPTION — keep these (they are intentional):
+  background: rgba(4, 12, 10, 0.7)  on cards/panels
+  background: rgba(0, 200, 140,      on active states
+  background: transparent            keep all of these
+
+### Step 3 — Remove background from ALL wrapper divs
+
+In persona.component.html, find the root wrapper div
+(the first div inside the template) and add:
+
+  style="background: transparent"
+
+Also find any div with class containing:
+  "workspace", "persona-page", "page-content",
+  "content-wrapper", "main-content", "container"
+
+And in SCSS set each of these to:
+
+  background: transparent !important;
+
+### Step 4 — Fix router outlet background
+
+In app.component.scss or styles.scss, ensure:
+
+  router-outlet + * {
+    background: transparent !important;
+  }
+
+  /* Angular CDK overlay */
+  .cdk-overlay-container {
+    background: transparent;
+  }
+
+### Step 5 — Fix the page-wrapper covering background
+
+In app.component.scss:
+
+  .page-wrapper {
+    background: transparent !important;
+    /* remove any background set here */
+  }
+
+### Step 6 — Verify background component z-index
+
+In background.component.scss:
+
+  :host {
+    position: fixed;
+    inset: 0;
+    z-index: 0;    /* must be 0 — below all page content */
+    display: block;
+    pointer-events: none;
+  }
+
+  .bg-gradient-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    /* gradient stays — never transparent */
+    background:
+      radial-gradient(
+        ellipse 60% 75% at 18% 52%,
+        rgba(0, 140, 100, 0.22) 0%,
+        transparent 65%
+      ),
+      radial-gradient(
+        ellipse 28% 38% at 18% 52%,
+        rgba(0, 180, 120, 0.10) 0%,
+        transparent 42%
+      ),
+      radial-gradient(
+        ellipse 75% 55% at 50% 115%,
+        rgba(0, 80, 60, 0.14) 0%,
+        transparent 55%
+      ),
+      #040C0A;
+  }
+
+  .bg-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;   /* canvas above gradient */
+  }
+
+### Step 7 — Add semi-transparent overlay for readability
+
+The background showing through is good but text
+needs contrast. Add this to persona.component.scss:
+
+/* Semi-transparent overlay — allows background
+   to show through while keeping text readable */
+.workspace-overlay,
+.persona-overlay,
+[class*="workspace"],
+[class*="persona-page"] {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 12, 10, 0.45);
+    pointer-events: none;
+    z-index: -1;
+  }
+}
+
+════════════════════════════════════════════════════
+FIX 2 — RING TEXT "ASSOCIAT / E" STILL BREAKING
+════════════════════════════════════════════════════
+
+The word "Associate" does not fit in the inner circle.
+The previous fix used white-space: nowrap but the
+circle is too small to contain it at the current
+font size. Two things need to change simultaneously.
+
+In floating-persona-btn.component.scss:
+
+### Make inner circle wider (it is a circle so
+### width = height, but we can use a wider ellipse
+### OR just increase the font size logic)
+
+.inner-circle {
+  width: 98px;
+  height: 98px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;          /* horizontal padding */
+  gap: 3px;
+  overflow: hidden;        /* clip if still too long */
+}
+
+/* The label stack */
+.persona-label-top {
+  font-size: 0.44rem;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: rgba(0, 200, 140, 0.55);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.persona-label-role {
+  font-family: 'Inter', sans-serif;  /* Inter not Syne —
+    Inter is narrower and fits better in small spaces */
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  white-space: nowrap;
+  letter-spacing: -0.04em;  /* tight tracking */
+  line-height: 1;
+  display: block;
+  max-width: none;
+  overflow: visible;
+
+  /* Dynamic font size based on name length:
+     Short names (< 7 chars): 0.78rem
+     Medium names (7-9 chars): 0.68rem  
+     Long names (10+ chars): 0.58rem  */
+  font-size: 0.78rem;
+}
+
+/* Apply size classes based on name length */
+.persona-label-role.name-medium {
+  font-size: 0.68rem;
+  letter-spacing: -0.05em;
+}
+
+.persona-label-role.name-long {
+  font-size: 0.58rem;
+  letter-spacing: -0.06em;
+}
+
+### In floating-persona-btn.component.ts:
+
+/* Replace isLongName getter with nameLength getter */
+
+get nameLengthClass(): string {
+  const name = this.currentPersona;
+  if (name.length >= 10) return 'name-long';
+  if (name.length >= 7)  return 'name-medium';
+  return '';
+}
+
+/* Persona names and their expected classes:
+   "Associate"  = 9 chars → name-medium → 0.68rem
+   "Manager"    = 7 chars → name-medium → 0.68rem
+   "HR Partner" = 10 chars → name-long  → 0.58rem */
+
+### In floating-persona-btn.component.html:
+
+<span class="persona-label-role"
+  [class]="'persona-label-role ' + nameLengthClass">
+  {{ currentPersona }}
+</span>
+
+### Laptop responsive — ring text
+
+@media (max-width: 1280px) {
+  .persona-float {
+    width: 118px;
+    height: 118px;
+  }
+
+  .inner-circle {
+    width: 88px;
+    height: 88px;
+    padding: 0 6px;
+  }
+
+  .persona-label-role {
+    font-size: 0.72rem;
+  }
+
+  .persona-label-role.name-medium {
+    font-size: 0.62rem;
+  }
+
+  .persona-label-role.name-long {
+    font-size: 0.52rem;
+  }
+}
+
+════════════════════════════════════════════════════
+FIX 3 — "ASK CST" BUTTON REPOSITIONED
+════════════════════════════════════════════════════
+
+The Ask CST button is floating mid-page overlapping
+journey chips. It should be fixed to the bottom of
+the screen, not floating in the content area.
+
+Find the Ask CST button in persona.component.html
+or wherever it is rendered.
+
+In its SCSS (or persona.component.scss):
+
+/* If it has its own class — adjust selector */
+.ask-cst-btn,
+[class*="ask-cst"],
+[class*="ask-btn"],
+button:contains("Ask CST") {
+  position: fixed;
+  bottom: 2rem;
+  left: 2rem;            /* bottom LEFT — opposite side
+                            from the persona ring button
+                            which is bottom RIGHT */
+  z-index: 9998;
+  
+  background: transparent;
+  border: 1.5px solid #00C896;
+  color: #00C896;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 0.65rem 1.4rem;
+  border-radius: 100px;
+  cursor: pointer;
+  white-space: nowrap;
+  
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+
+  &:hover {
+    background: #00C896;
+    color: #040C0A;
+  }
+}
+
+@media (max-width: 768px) {
+  .ask-cst-btn,
+  [class*="ask-cst"],
+  [class*="ask-btn"] {
+    bottom: 1.5rem;
+    left: 1.5rem;
+    font-size: 0.72rem;
+    padding: 0.55rem 1.1rem;
+  }
+}
+
+/* Add bottom padding to page content so
+   fixed buttons don't overlap last chip */
+.persona-content,
+[class*="workspace"],
+[class*="journey-list"] {
+  padding-bottom: 80px;
+}
+
+════════════════════════════════════════════════════
+RULES
+════════════════════════════════════════════════════
+
+1. !important on background: transparent is justified
+   here because Angular's view encapsulation adds
+   component-scoped styles that can override normal
+   cascade. The !important ensures transparency wins
+   regardless of specificity.
+
+2. Inter font on .persona-label-role instead of Syne —
+   Inter is a condensed humanist sans that fits more
+   characters in the same width. Syne is wide and
+   decorative — wrong choice for a small circle label.
+
+3. nameLengthClass on the role span uses [class]
+   binding not [ngClass] to avoid conflicts with
+   the base class name. The string includes the
+   base class: 'persona-label-role ' + nameLengthClass
+
+4. Ask CST fixed to bottom LEFT because the persona
+   ring button is fixed to bottom RIGHT. Two fixed
+   elements on the same side overlap each other.
+   Left/right split keeps both always accessible.
+
+5. The ::before overlay on persona page uses
+   position: fixed so it covers the full viewport
+   as user scrolls — not just the component height.
+   position: absolute would only cover the component
+   height and leave the bottom of long pages unshaded.
+
+════════════════════════════════════════════════════
+DELIVERABLE
+════════════════════════════════════════════════════
+
+1. persona.component.scss    — all background fixes
+2. persona.component.html    — transparent wrapper
+3. app.component.scss        — router outlet fix
+4. styles.scss               — router outlet fix
+5. background.component.scss — z-index verification
+6. floating-persona-btn
+   .component.scss           — ring text fixes
+7. floating-persona-btn
+   .component.ts             — nameLengthClass getter
+8. floating-persona-btn
+   .component.html           — class binding update
