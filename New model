@@ -1,0 +1,23 @@
+Here's a prompt you can hand to an LLM (or Claude Code) to fix this:
+
+---
+
+**Prompt:**
+
+> In my Angular app, I have a "Next Step" (and "Previous Step") button pair that navigates between steps in a walkthrough/onboarding flow. Currently these buttons are positioned relative to the viewport/screen edges, which causes problems:
+>
+> - On large/wide screens, the buttons end up far from the central content card, making them hard to notice since they're disconnected from the card visually.
+> - On small screens (mobile), alignment breaks and buttons aren't positioned consistently.
+>
+> **What I want:**
+> 1. The main content sits in a centered card/container with a max-width (e.g. `max-width: 900px` or whatever the current card width is).
+> 2. On large screens, the "Previous" and "Next" buttons should be pinned to the **left and right edges of that centered card** (not the screen edges) — e.g. absolutely/relatively positioned just outside or flush with the card's left/right boundary, vertically centered against the card.
+> 3. On small screens (mobile breakpoint, e.g. `max-width: 768px`), the buttons should collapse into a normal in-flow layout — e.g. a fixed/sticky footer bar or a flex row below the card with "Previous" on the left and "Next" on the right, full-width friendly, with proper padding/margins so they don't touch screen edges.
+> 4. Use a responsive approach (CSS `@media` queries or Angular CDK BreakpointObserver) rather than hardcoded pixel positions, so it works across screen sizes.
+> 5. Please provide the updated HTML template structure and SCSS/CSS, using flexbox or CSS Grid, keeping the card centered with `margin: 0 auto` and the buttons positioned relative to the card's bounding box (use a wrapping container with `position: relative` and buttons with `position: absolute` for desktop, switching to normal flex layout for mobile).
+>
+> Here's my current HTML/SCSS for this section: [paste your relevant Angular component template + styles here]
+
+---
+
+Paste your actual component code where indicated — that'll let the LLM give you a precise diff instead of generic boilerplate. Want me to help you draft the actual CSS/HTML fix right now if you share the current template?
