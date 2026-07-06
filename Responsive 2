@@ -1,0 +1,480 @@
+Looking at both screenshots carefully.
+
+**Image 1 (Mobile — Pixel 7, 412px):**
+- "EMPLOYEE" is breaking into "EMPL / OYEE" — word breaking mid-word
+- "JOURNEY." breaking into "JOUR / NEY." — same issue
+- Body text is overlapping the heading on the right side
+- Cannot scroll — page is locked
+- "Ask CST" button floating randomly at bottom right
+- Edge labels and scroll indicator not positioned correctly
+- Hero content is not vertically centered properly
+
+**Image 2 (Ultrawide monitor):**
+- Cards section — two cards are small and centered, not filling the width
+- Stats row — only 3 visible, "1 · Experience" is cut off on right
+- Footer Fidelity logo is huge relative to text
+- Hero section (not visible but from previous context) — text not filling screen on ultrawide
+
+**Root causes I can diagnose:**
+
+**Mobile scroll locked** — almost certainly `overflow: hidden` on `body` or `:host` that was added for the card animation. The `overflow-x: hidden` is blocking `overflow-y` scroll on iOS/mobile Chrome.
+
+**Word breaking** — `word-break: break-word` in global styles is splitting words mid-character. The heading needs `word-break: keep-all` or `white-space: nowrap` with size scaling.
+
+**Ultrawide** — `max-width` containers need to be wider, or the hero needs `100vw` full bleed on large screens.
+
+---
+
+## The Prompt
+
+```
+Fix these specific responsive issues across the app.
+These are targeted fixes only — do not rewrite entire
+files. Show only the changed sections.
+
+════════════════════════════════════════════════════
+CRITICAL FIX 1 — MOBILE SCROLL LOCKED
+════════════════════════════════════════════════════
+
+The page cannot scroll on mobile. This is caused by
+overflow: hidden being set on html, body, or :host
+which blocks Y-axis scrolling on iOS and mobile Chrome.
+
+In styles.scss replace:
+
+  /* WRONG — blocks vertical scroll on mobile */
+  html, body {
+    overflow-x: hidden;
+  }
+
+With:
+
+  html {
+    overflow-x: clip;  /* clip not hidden — does not
+                          create a new scroll container
+                          so vertical scroll works */
+  }
+
+  body {
+    overflow-x: clip;
+    min-height: 100vh;
+    min-height: 100dvh; /* dynamic viewport on mobile
+                           accounts for browser chrome
+                           appearing/disappearing */
+  }
+
+Also check every component SCSS for:
+  overflow: hidden  →  check if this is on :host
+  If yes, change to:
+  overflow-x: clip;
+  overflow-y: visible;
+
+In landing.component.scss specifically:
+  :host {
+    overflow-x: clip;   /* NOT overflow: hidden */
+    overflow-y: visible; /* explicit — never hidden */
+  }
+
+In background.component.scss:
+  :host {
+    overflow: visible;  /* background must never clip */
+  }
+
+════════════════════════════════════════════════════
+CRITICAL FIX 2 — WORD BREAKING ON MOBILE HEADINGS
+════════════════════════════════════════════════════
+
+"EMPLOYEE" and "JOURNEY." are breaking mid-word.
+This is caused by word-break: break-word in global
+styles combined with the heading being too wide.
+
+In styles.scss REMOVE this global rule:
+  * {
+    word-break: break-word;  /* REMOVE — breaks headings */
+  }
+
+Replace with a targeted rule:
+  p, li, span, .body-text, .footer-text {
+    word-break: break-word;  /* only on body text */
+    overflow-wrap: break-word;
+  }
+
+  /* Headings NEVER break mid-word */
+  h1, h2, h3, h4, h5, h6,
+  .h-solid, .h-ghost, .h-accent,
+  .hero-heading, .page-title,
+  .section-title, .eco-title {
+    word-break: keep-all;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
+
+In landing.component.scss add to each heading line:
+
+.h-solid {
+  word-break: keep-all;
+  hyphens: none;
+  white-space: nowrap;  /* forces single line */
+
+  /* If nowrap causes overflow, scale down with vw */
+  font-size: clamp(2rem, 9vw, 11rem);
+}
+
+.h-ghost {
+  word-break: keep-all;
+  hyphens: none;
+  white-space: nowrap;
+  font-size: clamp(1.4rem, 5.5vw, 6rem);
+  margin-left: 8%;
+}
+
+.h-accent {
+  word-break: keep-all;
+  hyphens: none;
+  white-space: nowrap;
+  font-size: clamp(1.8rem, 8vw, 9rem);
+}
+
+@media (max-width: 480px) {
+  .h-solid  { font-size: clamp(2rem, 11vw, 4rem); }
+  .h-ghost  {
+    font-size: clamp(1.2rem, 7vw, 2.5rem);
+    margin-left: 4%;
+  }
+  .h-accent { font-size: clamp(1.6rem, 10vw, 3.5rem); }
+}
+
+@media (max-width: 360px) {
+  .h-solid  { font-size: 2rem; }
+  .h-ghost  { font-size: 1.2rem; margin-left: 0; }
+  .h-accent { font-size: 1.8rem; }
+}
+
+════════════════════════════════════════════════════
+CRITICAL FIX 3 — MOBILE HERO LAYOUT OVERLAP
+════════════════════════════════════════════════════
+
+On mobile the body text overlaps the heading.
+The hero-content uses position: absolute with
+top: 38vh — on small screens this pushes content
+into an area that overlaps with other elements.
+
+In landing.component.scss:
+
+/* DESKTOP — keep absolute positioning */
+.hero-section {
+  position: relative;
+  height: 100vh;
+}
+
+.hero-content {
+  position: absolute;
+  top: 38vh;
+  padding: 0 6vw;
+}
+
+/* MOBILE — switch to normal flow */
+@media (max-width: 768px) {
+  .hero-section {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 0 60px; /* top: space for any fixed elements
+                             bottom: space for scroll indicator */
+  }
+
+  .hero-content {
+    position: relative;  /* EXIT absolute positioning */
+    top: auto;           /* REMOVE the top: 38vh */
+    padding: 0 6vw;
+    width: 100%;
+  }
+
+  /* Edge labels hidden on mobile — too cluttered */
+  .edge-year,
+  .edge-fmr {
+    display: none;
+  }
+
+  /* Scroll indicator repositioned */
+  .scroll-indicator {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    margin: 2rem auto 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-section {
+    padding: 60px 0 40px;
+  }
+
+  .hero-eyebrow {
+    font-size: 0.5rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.5rem;
+  }
+
+  .eyebrow-line { display: none; }
+
+  .hero-body {
+    font-size: 0.82rem;
+    line-height: 1.65;
+    margin-bottom: 1.8rem;
+  }
+
+  .hero-ctas {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .cta-primary {
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+════════════════════════════════════════════════════
+FIX 4 — ULTRAWIDE: HERO NOT FILLING SCREEN
+════════════════════════════════════════════════════
+
+On ultrawide monitors (1800px+) the hero text
+feels small because clamp() hits its maximum too
+early and containers cap out.
+
+In landing.component.scss:
+
+/* Increase max values for ultrawide */
+.h-solid  { font-size: clamp(2rem, 9vw, 14rem); }
+.h-ghost  { font-size: clamp(1.4rem, 5.5vw, 8rem); }
+.h-accent { font-size: clamp(1.8rem, 8vw, 12rem); }
+
+.hero-content {
+  max-width: 1600px; /* was 1280px — wider on ultrawide */
+}
+
+@media (min-width: 1800px) {
+  .hero-content {
+    top: 35vh; /* slightly higher on very tall screens */
+  }
+}
+
+════════════════════════════════════════════════════
+FIX 5 — ULTRAWIDE: CARDS NOT FILLING WIDTH
+════════════════════════════════════════════════════
+
+Cards are small and centered on ultrawide because
+max-width on the container is capping at 1100px.
+
+In landing.component.scss:
+
+.cards-track {
+  max-width: 1400px; /* was 1100px */
+  width: 100%;
+}
+
+@media (min-width: 1800px) {
+  .cards-track {
+    max-width: 1600px;
+  }
+
+  .card {
+    padding: 3rem 2.5rem; /* more breathing room */
+  }
+
+  .card-title {
+    font-size: clamp(1.4rem, 2.5vw, 2.5rem);
+  }
+}
+
+════════════════════════════════════════════════════
+FIX 6 — STATS ROW CUT OFF ON RIGHT
+════════════════════════════════════════════════════
+
+4th stat ("1 · Experience") is being cut off.
+The stats section has overflow issues.
+
+In landing.component.scss, find the stats container
+(whatever class wraps all 4 stats) and add:
+
+.stats-section,
+[class*="stat-row"],
+[class*="stats-wrap"] {
+  overflow: visible;  /* never clip stats */
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Each stat item — ensure equal width */
+.stat-block,
+.stat-item,
+[class*="stat-block"] {
+  flex: 1 1 0;        /* equal flex basis */
+  min-width: 0;       /* allow shrinking */
+  overflow: visible;
+}
+
+/* Stat number — prevent overflow */
+.stat-count,
+[class*="stat-num"] {
+  white-space: nowrap;
+  overflow: visible;
+}
+
+@media (max-width: 1280px) {
+  /* On laptop, reduce stat number size */
+  .stat-count,
+  [class*="stat-num"] {
+    font-size: clamp(3rem, 7vw, 8rem);
+  }
+}
+
+════════════════════════════════════════════════════
+FIX 7 — FOOTER LOGO TOO LARGE ON ULTRAWIDE
+════════════════════════════════════════════════════
+
+In footer.component.scss:
+
+.fidelity-logo {
+  height: 22px;     /* desktop */
+  max-height: 22px; /* cap it — prevents scaling up */
+  width: auto;
+}
+
+@media (min-width: 1800px) {
+  .fidelity-logo {
+    height: 24px; /* only slightly larger on ultrawide */
+  }
+}
+
+@media (max-width: 768px) {
+  .fidelity-logo {
+    height: 18px;
+  }
+}
+
+════════════════════════════════════════════════════
+FIX 8 — IOS SPECIFIC FIXES
+════════════════════════════════════════════════════
+
+Add to styles.scss:
+
+/* iOS Safari viewport fix */
+@supports (-webkit-touch-callout: none) {
+  .hero-section,
+  [class*="hero"] {
+    /* iOS Safari ignores 100vh when browser chrome
+       is visible. Use dvh with fallback. */
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Fix iOS momentum scroll */
+.page-wrapper,
+[class*="page-content"],
+[class*="scroll-container"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent iOS double-tap zoom on buttons */
+button, a {
+  touch-action: manipulation;
+}
+
+/* Fix iOS font size inflation in landscape */
+@media screen and (orientation: landscape) {
+  html {
+    -webkit-text-size-adjust: none;
+  }
+}
+
+════════════════════════════════════════════════════
+FIX 9 — FLOATING PERSONA BUTTON MOBILE OVERLAP
+════════════════════════════════════════════════════
+
+On mobile the floating button overlaps content.
+Add bottom padding to page content so button
+doesn't cover the last element.
+
+In styles.scss:
+
+@media (max-width: 768px) {
+  /* Add bottom padding when persona button is visible */
+  .page-wrapper {
+    padding-bottom: 100px;
+  }
+}
+
+In floating-persona-btn.component.scss:
+@media (max-width: 480px) {
+  /* Move to bottom center on very small screens
+     so it doesn't block right-side content */
+  :host {
+    bottom: 1rem;
+    right: 50%;
+    transform: translateX(50%);
+  }
+
+  .persona-menu {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 95px;
+  }
+}
+
+════════════════════════════════════════════════════
+RULES
+════════════════════════════════════════════════════
+
+1. overflow-x: clip is the CORRECT fix for horizontal
+   scroll prevention. overflow-x: hidden creates a new
+   scroll container that traps position:fixed elements
+   and blocks momentum scrolling on iOS.
+   NEVER use overflow: hidden on html or body.
+
+2. min-height: 100dvh (dynamic viewport height) is
+   required for mobile. 100vh on iOS Safari includes
+   the browser chrome height — content gets cut off.
+   dvh recalculates when browser chrome shows/hides.
+
+3. white-space: nowrap on headings prevents mid-word
+   breaks. The clamp() font-size ensures the text
+   always fits within the viewport width.
+   If nowrap + clamp still overflows, reduce the
+   minimum clamp value further.
+
+4. position: relative on .hero-content for mobile
+   is mandatory — absolute positioning with top: 38vh
+   causes overlap when content is taller than expected.
+   Normal document flow on mobile, absolute on desktop.
+
+5. touch-action: manipulation on buttons and links
+   removes the 300ms click delay on iOS and prevents
+   double-tap zoom — makes the app feel native.
+
+6. Do not use -webkit-overflow-scrolling: touch on
+   the body element — only on scrollable containers.
+   Applying it to body can cause fixed elements to
+   scroll with the page on older iOS versions.
+
+════════════════════════════════════════════════════
+DELIVERABLE — show changed sections only
+════════════════════════════════════════════════════
+
+1. styles.scss               — overflow fix + iOS fixes
+2. landing.component.scss    — hero mobile + ultrawide
+3. footer.component.scss     — logo size cap
+4. floating-persona-btn      — mobile position
+   .component.scss
+```
+
+---
+
+**The single most important fix is `overflow-x: clip` replacing `overflow-x: hidden`.** This is the root cause of mobile scroll being locked. `overflow: hidden` on `body` creates a new block formatting context — the browser treats the body as a scroll container, which means the main page scroll stops working on iOS. `overflow-x: clip` clips content visually without creating a scroll container, so vertical scrolling remains native and unbroken. This one change will fix the scroll lock immediately.
