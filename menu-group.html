@@ -1,0 +1,29 @@
+@if (menuState.isLoading()) {
+  <div class="groups-loading">
+    <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+    <span>Loading menu&hellip;</span>
+  </div>
+} @else { @if (menuState.selectedRailItem(); as rail) {
+  <div class="groups-grid">
+    @for (group of rail.groups; track group.id) {
+      <section class="group">
+        <h3 class="group-title">{{ group.title }}</h3>
+        @if (group.subtitle) {
+          <span class="group-subtitle">{{ group.subtitle }}</span>
+        }
+        <ul class="group-items">
+          @for (item of group.items; track item.id) {
+            <li>
+              <button class="menu-link" (click)="onItemClick(item)">
+                {{ item.title }}
+                @if (item.isExternal) {
+                  <i class="pi pi-external-link link-ext" aria-hidden="true"></i>
+                }
+              </button>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+} }
