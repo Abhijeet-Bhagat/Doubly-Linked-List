@@ -1,0 +1,24 @@
+# Save the files so you can keep running the app
+Copy-Item service\src\main\resources\application.properties $env:TEMP\
+Copy-Item service\src\main\resources\application-dev.properties $env:TEMP\
+Copy-Item ui\proxy.conf.json $env:TEMP\
+Copy-Item ui\proxy.json $env:TEMP\
+
+git branch backup/menu-test
+
+git filter-repo --path service/src/main/resources/application.properties `
+                --path service/src/main/resources/application-dev.properties `
+                --path ui/proxy.conf.json `
+                --path ui/proxy.json `
+                --invert-paths --force
+
+# Confirm gone
+git log --all --oneline -- service/src/main/resources/application.properties
+
+# Restore working copies, ignored
+Copy-Item $env:TEMP\application.properties service\src\main\resources\
+# ...etc
+
+# .gitignore already has the properties files — add the proxy ones
+git remote add origin <url>
+git push -u origin feature/menu-test
