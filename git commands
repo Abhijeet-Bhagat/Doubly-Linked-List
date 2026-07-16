@@ -1,3 +1,41 @@
+git branch backup/menu-test
+
+# Save working copies first
+Copy-Item service\src\main\resources\application.properties $env:TEMP\
+Copy-Item ui\proxy.json $env:TEMP\
+Copy-Item ui\proxy.conf.json $env:TEMP\
+Copy-Item service\src\main\resources\application-dev.properties $env:TEMP\
+
+git filter-branch --force --index-filter `
+  "git rm --cached --ignore-unmatch service/src/main/resources/application.properties service/src/main/resources/application-dev.properties ui/proxy.conf.json ui/proxy.json" `
+  --prune-empty -- --all
+
+# Verify
+git log --all --oneline -- ui/proxy.json     # should print nothing
+
+# Restore working copies (now untracked, and .gitignore'd)
+Copy-Item $env:TEMP\proxy.json ui\
+# ...etc
+
+git push -u origin feature/menu-test
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+
 # Save the files so you can keep running the app
 Copy-Item service\src\main\resources\application.properties $env:TEMP\
 Copy-Item service\src\main\resources\application-dev.properties $env:TEMP\
