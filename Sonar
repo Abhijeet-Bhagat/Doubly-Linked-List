@@ -1,0 +1,57 @@
+@if (view() === 'new' || view() === 'edit') {
+  <dialog
+    #cpDialog
+    class="cp-modal-overlay"
+    aria-labelledby="cp-modal-title"
+    (click)="backToList()"
+    (cancel)="backToList()">
+    <div
+      class="cp-modal-container"
+      (click)="$event.stopPropagation()">
+      <div class="cp-modal-header">
+        <h3 id="cp-modal-title" class="cp-modal-title">{{ formTitle }}</h3>
+        <button class="cp-modal-close" type="button" aria-label="Close dialog" (click)="backToList()">x</button>
+      </div>
+      <div class="cp-modal-body">
+        <app-dynamic-form
+          saveLabel="Save Cycle Parameter"
+          cancelLabel="Back"
+          [sections]="formSections()"
+          [form]="form"
+          [saving]="saving()"
+          [auditInfo]="auditInfo()"
+          (formSave)="onSave()"
+          (formCancel)="backToList()">
+        </app-dynamic-form>
+      </div>
+    </div>
+  </dialog>
+}
+
+
+
+@ViewChild('cpDialog') cpDialog?: ElementRef<HTMLDialogElement>;
+
+constructor() {
+  effect(() => {
+    const isOpen = this.view() === 'new' || this.view() === 'edit';
+    const el = this.cpDialog?.nativeElement;
+    if (!el) return;
+    if (isOpen && !el.open) el.showModal();
+    if (!isOpen && el.open) el.close();
+  });
+
+
+
+.cp-modal-overlay {
+  padding: 0;
+  border: none;
+  background: transparent;   // container holds the visible box
+  max-width: 100vw;
+  max-height: 100vh;
+
+  &::backdrop {
+    background: rgb(15 23 42 / 45%);
+  }
+}
+}
