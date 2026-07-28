@@ -1,0 +1,52 @@
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+
+
+
+package com.fmr.sharescyclemanager.aspect;
+
+import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.stereotype.Component;
+
+@Aspect
+@Component
+@Slf4j
+public class LoggingAspect {
+
+    @Pointcut("within(@org.springframework.web.bind.annotation.RestController *)")
+    public void controllerLayer() {}
+
+    @Pointcut("within(@org.springframework.stereotype.Service *)")
+    public void serviceLayer() {}
+
+    @Around("controllerLayer() || serviceLayer()")
+    public Object logExecution(ProceedingJoinPoint joinPoint) throws Throwable {
+        String className = joinPoint.getSignature().getDeclaringType().getSimpleName();
+        String methodName = joinPoint.getSignature().getName();
+
+        if (log.isDebugEnabled()) {
+            log.debug("Entering {}.{}() with args: {}",
+                    className, methodName, Arrays.toString(joinPoint.getArgs()));
+        }
+
+        long start = System.currentTimeMillis();
+        try {
+            Object result = joinPoint.proceed();
+            long elapsed = System.currentTimeMillis() - start;
+            log.info("{}.{}() completed in {} ms", className, methodName, elapsed);
+            return result;
+        } catch (Throwable ex) {
+            long elapsed = System.currentTimeMillis() - start;
+            log.error("{}.{}() failed after {} ms: {}",
+                    className, methodName, elapsed, ex.getMessage(), ex);
+            throw ex;
+        }
+    }
+
+}
