@@ -40,17 +40,30 @@ import static org.mockito.Mockito.when;
 /**
  * Unit tests for {@link CycleParameterService}.
  *
- * Pure Mockito — no Spring context, no DB. Repository contracts are stubbed, so
- * these tests pin down the service's own logic: normalisation, defaulting,
- * uniqueness gating, 404/409 mapping and DTO projection.
+ * Pure Mockito, no Spring context and no database. Repository contracts are
+ * stubbed so these tests pin down the service's own logic: normalisation,
+ * defaulting, uniqueness gating, 404/409 mapping and DTO projection.
  *
- * NOTE: adjust package imports for the entity/DTO/repository if they differ.
+ * Adjust the package imports for the entity, DTO and repositories if they differ.
+ *
+ * S5960 is suppressed because these are test assertions. The durable fix is to
+ * register src/test/java as test sources in the Sonar scan (see delivery note);
+ * this annotation is only a fallback so the file stays clean if that config lags.
  */
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("java:S5960")
 class CycleParameterServiceTest {
 
     private static final String CORR_ID = "corr-123";
     private static final String ACTOR = "abhi123";
+    private static final String CYCLE_DAILY = "DAILY_CYCLE";
+    private static final String CYCLE_WEEKLY = "WEEKLY_CYCLE";
+    private static final String CODE_MAX_RETRY = "MAX_RETRY";
+    private static final String CODE_TIMEOUT = "TIMEOUT";
+    private static final String NAME_MAX_RETRY = "Max retry";
+    private static final String DESC_MAX_RETRY = "Maximum retry attempts";
+    private static final String CREATED_BY = "creator";
+    private static final String MODIFIED_BY = "updater";
 
     @Mock
     private WorkstationCycleParameterRepository repository;
@@ -65,22 +78,22 @@ class CycleParameterServiceTest {
 
     @BeforeEach
     void setUp() {
-        activeEntity = entity(1L, "MAX_RETRY", "DAILY_CYCLE", "Y");
+        activeEntity = entity(1L, CODE_MAX_RETRY, CYCLE_DAILY, "Y");
     }
 
     private WorkstationCycleParameter entity(Long id, String code, String cycleName, String isActive) {
         return WorkstationCycleParameter.builder()
                 .parameterId(id)
                 .parameterCode(code)
-                .parameterName("Max retry")
-                .parameterDesc("Maximum retry attempts")
+                .parameterName(NAME_MAX_RETRY)
+                .parameterDesc(DESC_MAX_RETRY)
                 .defaultValue("3")
                 .isActive(isActive)
                 .isRestricted("N")
                 .cycleName(cycleName)
-                .createdBy("creator")
+                .createdBy(CREATED_BY)
                 .createdDate(OffsetDateTime.now().minusDays(5))
-                .updatedBy("updater")
+                .updatedBy(MODIFIED_BY)
                 .updatedDate(OffsetDateTime.now().minusDays(1))
                 .build();
     }
@@ -88,8 +101,8 @@ class CycleParameterServiceTest {
     private CycleParameterDto dto(String code, String cycleName) {
         CycleParameterDto d = new CycleParameterDto();
         d.setParameterCode(code);
-        d.setParameterName("Max retry");
-        d.setParameterDesc("Maximum retry attempts");
+        d.setParameterName(NAME_MAX_RETRY);
+        d.setParameterDesc(DESC_MAX_RETRY);
         d.setDefaultValue("3");
         d.setIsActive("Y");
         d.setIsRestricted("N");
@@ -110,15 +123,15 @@ class CycleParameterServiceTest {
         void mapsContentAndMetadata() {
             Pageable pageable = PageRequest.of(1, 2, Sort.by("parameterCode"));
             Page<WorkstationCycleParameter> page = new PageImpl<>(
-                    List.of(activeEntity, entity(2L, "TIMEOUT", "DAILY_CYCLE", "Y")),
+                    List.of(activeEntity, entity(2L, CODE_TIMEOUT, CYCLE_DAILY, "Y")),
                     pageable,
-                    5); // 5 total -> 3 pages, page 1 has both next and previous
+                    5); // 5 total gives 3 pages; page 1 has both next and previous
             when(repository.findAll(pageable)).thenReturn(page);
 
             EnterpriseApiResponse<List<CycleParameterDto>> response = service.getAll(pageable, CORR_ID);
 
             assertThat(response.getData()).extracting(CycleParameterDto::getParameterCode)
-                    .containsExactly("MAX_RETRY", "TIMEOUT");
+                    .containsExactly(CODE_MAX_RETRY, CODE_TIMEOUT);
             assertThat(response.getOperationCorrelationId()).isEqualTo(CORR_ID);
             assertThat(response.getOperationTimestamp()).isNotNull();
             assertThat(response.getBusinessMessage()).contains("retrieved");
@@ -159,16 +172,16 @@ class CycleParameterServiceTest {
         }
 
         @Test
-        @DisplayName("includes inactive rows — findAll applies no isActive filter")
+        @DisplayName("includes inactive rows because findAll applies no isActive filter")
         void includesInactiveRows() {
             Pageable pageable = PageRequest.of(0, 10);
             when(repository.findAll(pageable)).thenReturn(new PageImpl<>(
-                    List.of(activeEntity, entity(2L, "OLD_CODE", "DAILY_CYCLE", "N")), pageable, 2));
+                    List.of(activeEntity, entity(2L, "OLD_CODE", CYCLE_DAILY, "N")), pageable, 2));
 
             EnterpriseApiResponse<List<CycleParameterDto>> response = service.getAll(pageable, CORR_ID);
 
-            // Documents current behaviour: the "active, non-active" comment on the
-            // method is accurate, but getById disagrees with it. See notes.
+            // Documents current behaviour: the list returns inactive rows, but the
+            // detail lookup hides them. See the delivery note.
             assertThat(response.getData()).hasSize(2);
             assertThat(response.getData()).extracting(CycleParameterDto::getIsActive)
                     .containsExactly("Y", "N");
@@ -191,7 +204,7 @@ class CycleParameterServiceTest {
             EnterpriseApiResponse<CycleParameterDto> response = service.getById(1L, CORR_ID);
 
             assertThat(response.getData().getParameterId()).isEqualTo(1L);
-            assertThat(response.getData().getParameterCode()).isEqualTo("MAX_RETRY");
+            assertThat(response.getData().getParameterCode()).isEqualTo(CODE_MAX_RETRY);
             assertThat(response.getOperationCorrelationId()).isEqualTo(CORR_ID);
         }
 
@@ -212,7 +225,7 @@ class CycleParameterServiceTest {
         @Test
         @DisplayName("throws 404 for a soft-deleted (isActive = N) record")
         void hidesInactiveRecord() {
-            when(repository.findById(2L)).thenReturn(Optional.of(entity(2L, "OLD", "DAILY_CYCLE", "N")));
+            when(repository.findById(2L)).thenReturn(Optional.of(entity(2L, "OLD", CYCLE_DAILY, "N")));
 
             assertThatThrownBy(() -> service.getById(2L, CORR_ID))
                     .isInstanceOf(ResponseStatusException.class)
@@ -221,18 +234,18 @@ class CycleParameterServiceTest {
         }
 
         @Test
-        @DisplayName("throws 404 when isActive is null rather than NPE-ing")
+        @DisplayName("throws 404 when isActive is null rather than raising an NPE")
         void handlesNullIsActive() {
-            when(repository.findById(3L)).thenReturn(Optional.of(entity(3L, "ODD", "DAILY_CYCLE", null)));
+            when(repository.findById(3L)).thenReturn(Optional.of(entity(3L, "ODD", CYCLE_DAILY, null)));
 
             assertThatThrownBy(() -> service.getById(3L, CORR_ID))
                     .isInstanceOf(ResponseStatusException.class);
         }
 
         @Test
-        @DisplayName("treats lowercase 'y' as inactive — the filter is case-sensitive")
+        @DisplayName("treats lowercase 'y' as inactive because the filter is case-sensitive")
         void isActiveFilterIsCaseSensitive() {
-            when(repository.findById(4L)).thenReturn(Optional.of(entity(4L, "ODD", "DAILY_CYCLE", "y")));
+            when(repository.findById(4L)).thenReturn(Optional.of(entity(4L, "ODD", CYCLE_DAILY, "y")));
 
             assertThatThrownBy(() -> service.getById(4L, CORR_ID))
                     .isInstanceOf(ResponseStatusException.class);
@@ -251,11 +264,11 @@ class CycleParameterServiceTest {
         @DisplayName("delegates to ScheduleJobDetailRepository and wraps the result")
         void returnsNames() {
             when(scheduleJobDetailRepository.findDistinctCycleNamesWithParameter())
-                    .thenReturn(List.of("DAILY_CYCLE", "WEEKLY_CYCLE"));
+                    .thenReturn(List.of(CYCLE_DAILY, CYCLE_WEEKLY));
 
             EnterpriseApiResponse<List<String>> response = service.getCycleNames(CORR_ID);
 
-            assertThat(response.getData()).containsExactly("DAILY_CYCLE", "WEEKLY_CYCLE");
+            assertThat(response.getData()).containsExactly(CYCLE_DAILY, CYCLE_WEEKLY);
             assertThat(response.getOperationCorrelationId()).isEqualTo(CORR_ID);
             verifyNoInteractions(repository);
         }
@@ -280,13 +293,13 @@ class CycleParameterServiceTest {
         @Test
         @DisplayName("checks uniqueness against the whole table (no exclude id) before saving")
         void checksUniquenessWithoutExcludeId() {
-            when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase("MAX_RETRY", "DAILY_CYCLE"))
+            when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase(CODE_MAX_RETRY, CYCLE_DAILY))
                     .thenReturn(false);
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.create(dto("MAX_RETRY", "DAILY_CYCLE"), ACTOR, CORR_ID);
+            service.create(dto(CODE_MAX_RETRY, CYCLE_DAILY), ACTOR, CORR_ID);
 
-            verify(repository).existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase("MAX_RETRY", "DAILY_CYCLE");
+            verify(repository).existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase(CODE_MAX_RETRY, CYCLE_DAILY);
             verify(repository, never())
                     .existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCaseAndParameterIdNot(anyString(), anyString(), anyLong());
         }
@@ -298,15 +311,15 @@ class CycleParameterServiceTest {
                     .thenReturn(false);
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.create(dto("  max_retry  ", "DAILY_CYCLE"), ACTOR, CORR_ID);
+            service.create(dto("  max_retry  ", CYCLE_DAILY), ACTOR, CORR_ID);
 
-            assertThat(captureSaved().getParameterCode()).isEqualTo("MAX_RETRY");
+            assertThat(captureSaved().getParameterCode()).isEqualTo(CODE_MAX_RETRY);
         }
 
         @Test
         @DisplayName("strips name and description")
         void stripsNameAndDesc() {
-            CycleParameterDto d = dto("MAX_RETRY", "DAILY_CYCLE");
+            CycleParameterDto d = dto(CODE_MAX_RETRY, CYCLE_DAILY);
             d.setParameterName("  Max retry  ");
             d.setParameterDesc("  Maximum retries  ");
             when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase(anyString(), anyString()))
@@ -316,14 +329,14 @@ class CycleParameterServiceTest {
             service.create(d, ACTOR, CORR_ID);
 
             WorkstationCycleParameter saved = captureSaved();
-            assertThat(saved.getParameterName()).isEqualTo("Max retry");
+            assertThat(saved.getParameterName()).isEqualTo(NAME_MAX_RETRY);
             assertThat(saved.getParameterDesc()).isEqualTo("Maximum retries");
         }
 
         @Test
         @DisplayName("applies defaults: isActive=Y, isRestricted=N, defaultValue=N when omitted")
         void appliesDefaults() {
-            CycleParameterDto d = dto("MAX_RETRY", "DAILY_CYCLE");
+            CycleParameterDto d = dto(CODE_MAX_RETRY, CYCLE_DAILY);
             d.setIsActive(null);
             d.setIsRestricted(null);
             d.setDefaultValue(null);
@@ -342,7 +355,7 @@ class CycleParameterServiceTest {
         @Test
         @DisplayName("keeps caller-supplied flags when they are present")
         void keepsSuppliedFlags() {
-            CycleParameterDto d = dto("MAX_RETRY", "DAILY_CYCLE");
+            CycleParameterDto d = dto(CODE_MAX_RETRY, CYCLE_DAILY);
             d.setIsActive("N");
             d.setIsRestricted("Y");
             d.setDefaultValue("10");
@@ -365,7 +378,7 @@ class CycleParameterServiceTest {
                     .thenReturn(false);
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.create(dto("MAX_RETRY", "DAILY_CYCLE"), ACTOR, CORR_ID);
+            service.create(dto(CODE_MAX_RETRY, CYCLE_DAILY), ACTOR, CORR_ID);
 
             WorkstationCycleParameter saved = captureSaved();
             assertThat(saved.getCreatedBy()).isEqualTo(ACTOR);
@@ -373,13 +386,13 @@ class CycleParameterServiceTest {
         }
 
         @Test
-        @DisplayName("stores the cycle name verbatim — it is not uppercased or stripped")
+        @DisplayName("stores the cycle name verbatim; it is not uppercased or stripped")
         void doesNotNormaliseCycleName() {
             when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase(anyString(), anyString()))
                     .thenReturn(false);
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.create(dto("MAX_RETRY", " daily_cycle "), ACTOR, CORR_ID);
+            service.create(dto(CODE_MAX_RETRY, " daily_cycle "), ACTOR, CORR_ID);
 
             assertThat(captureSaved().getCycleName()).isEqualTo(" daily_cycle ");
         }
@@ -387,15 +400,15 @@ class CycleParameterServiceTest {
         @Test
         @DisplayName("throws 409 and skips the save when the code already exists for the cycle")
         void throwsConflict() {
-            when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase("MAX_RETRY", "DAILY_CYCLE"))
+            when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase(CODE_MAX_RETRY, CYCLE_DAILY))
                     .thenReturn(true);
 
-            assertThatThrownBy(() -> service.create(dto("MAX_RETRY", "DAILY_CYCLE"), ACTOR, CORR_ID))
+            assertThatThrownBy(() -> service.create(dto(CODE_MAX_RETRY, CYCLE_DAILY), ACTOR, CORR_ID))
                     .isInstanceOf(ResponseStatusException.class)
                     .satisfies(ex -> {
                         ResponseStatusException rse = (ResponseStatusException) ex;
                         assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-                        assertThat(rse.getReason()).contains("MAX_RETRY").contains("DAILY_CYCLE");
+                        assertThat(rse.getReason()).contains(CODE_MAX_RETRY).contains(CYCLE_DAILY);
                     });
 
             verify(repository, never()).save(any());
@@ -409,7 +422,7 @@ class CycleParameterServiceTest {
             when(repository.save(any())).thenReturn(activeEntity);
 
             EnterpriseApiResponse<CycleParameterDto> response =
-                    service.create(dto("MAX_RETRY", "DAILY_CYCLE"), ACTOR, CORR_ID);
+                    service.create(dto(CODE_MAX_RETRY, CYCLE_DAILY), ACTOR, CORR_ID);
 
             assertThat(response.getData().getParameterId()).isEqualTo(1L);
             assertThat(response.getOperationCorrelationId()).isEqualTo(CORR_ID);
@@ -420,12 +433,12 @@ class CycleParameterServiceTest {
         @DisplayName("FAILS TODAY: a whitespace-padded code slips past the uniqueness check")
         void whitespacePaddedCodeBypassesUniquenessCheck() {
             // Uniqueness is checked with the raw DTO value, but the entity is saved
-            // with toUpperCase().strip() — so "  MAX_RETRY " is compared as-is
-            // (no match) and then persisted as "MAX_RETRY", creating a duplicate.
-            when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase("MAX_RETRY", "DAILY_CYCLE"))
+            // after trimming and upper-casing. So a padded value misses the
+            // case-insensitive lookup and is then stored as a duplicate.
+            when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase(CODE_MAX_RETRY, CYCLE_DAILY))
                     .thenReturn(true);
 
-            assertThatThrownBy(() -> service.create(dto("  MAX_RETRY ", "DAILY_CYCLE"), ACTOR, CORR_ID))
+            assertThatThrownBy(() -> service.create(dto("  MAX_RETRY ", CYCLE_DAILY), ACTOR, CORR_ID))
                     .isInstanceOf(ResponseStatusException.class)
                     .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                             .isEqualTo(HttpStatus.CONFLICT));
@@ -445,7 +458,7 @@ class CycleParameterServiceTest {
         void throwsWhenMissing() {
             when(repository.findById(99L)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> service.update(99L, dto("MAX_RETRY", "DAILY_CYCLE"), ACTOR, CORR_ID))
+            assertThatThrownBy(() -> service.update(99L, dto(CODE_MAX_RETRY, CYCLE_DAILY), ACTOR, CORR_ID))
                     .isInstanceOf(ResponseStatusException.class)
                     .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                             .isEqualTo(HttpStatus.NOT_FOUND));
@@ -454,12 +467,12 @@ class CycleParameterServiceTest {
         }
 
         @Test
-        @DisplayName("updates an inactive record — unlike getById, no isActive filter applies")
+        @DisplayName("updates an inactive record; unlike getById, no isActive filter applies")
         void allowsUpdatingInactiveRecord() {
-            when(repository.findById(2L)).thenReturn(Optional.of(entity(2L, "MAX_RETRY", "DAILY_CYCLE", "N")));
+            when(repository.findById(2L)).thenReturn(Optional.of(entity(2L, CODE_MAX_RETRY, CYCLE_DAILY, "N")));
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.update(2L, dto("MAX_RETRY", "DAILY_CYCLE"), ACTOR, CORR_ID);
+            service.update(2L, dto(CODE_MAX_RETRY, CYCLE_DAILY), ACTOR, CORR_ID);
 
             verify(repository).save(any());
         }
@@ -470,7 +483,7 @@ class CycleParameterServiceTest {
             when(repository.findById(1L)).thenReturn(Optional.of(activeEntity));
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.update(1L, dto("MAX_RETRY", "DAILY_CYCLE"), ACTOR, CORR_ID);
+            service.update(1L, dto(CODE_MAX_RETRY, CYCLE_DAILY), ACTOR, CORR_ID);
 
             verify(repository, never())
                     .existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCaseAndParameterIdNot(anyString(), anyString(), anyLong());
@@ -486,7 +499,7 @@ class CycleParameterServiceTest {
 
             verify(repository, never())
                     .existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCaseAndParameterIdNot(anyString(), anyString(), anyLong());
-            assertThat(captureSaved().getParameterCode()).isEqualTo("MAX_RETRY");
+            assertThat(captureSaved().getParameterCode()).isEqualTo(CODE_MAX_RETRY);
         }
 
         @Test
@@ -494,13 +507,13 @@ class CycleParameterServiceTest {
         void checksUniquenessOnCodeChange() {
             when(repository.findById(1L)).thenReturn(Optional.of(activeEntity));
             when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCaseAndParameterIdNot(
-                    "TIMEOUT", "DAILY_CYCLE", 1L)).thenReturn(false);
+                    CODE_TIMEOUT, CYCLE_DAILY, 1L)).thenReturn(false);
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.update(1L, dto("TIMEOUT", "DAILY_CYCLE"), ACTOR, CORR_ID);
+            service.update(1L, dto(CODE_TIMEOUT, CYCLE_DAILY), ACTOR, CORR_ID);
 
             verify(repository).existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCaseAndParameterIdNot(
-                    "TIMEOUT", "DAILY_CYCLE", 1L);
+                    CODE_TIMEOUT, CYCLE_DAILY, 1L);
             verify(repository, never())
                     .existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCase(anyString(), anyString());
         }
@@ -510,13 +523,13 @@ class CycleParameterServiceTest {
         void checksUniquenessOnCycleChange() {
             when(repository.findById(1L)).thenReturn(Optional.of(activeEntity));
             when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCaseAndParameterIdNot(
-                    "MAX_RETRY", "WEEKLY_CYCLE", 1L)).thenReturn(false);
+                    CODE_MAX_RETRY, CYCLE_WEEKLY, 1L)).thenReturn(false);
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.update(1L, dto("MAX_RETRY", "WEEKLY_CYCLE"), ACTOR, CORR_ID);
+            service.update(1L, dto(CODE_MAX_RETRY, CYCLE_WEEKLY), ACTOR, CORR_ID);
 
             verify(repository).existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCaseAndParameterIdNot(
-                    "MAX_RETRY", "WEEKLY_CYCLE", 1L);
+                    CODE_MAX_RETRY, CYCLE_WEEKLY, 1L);
         }
 
         @Test
@@ -524,9 +537,9 @@ class CycleParameterServiceTest {
         void throwsConflict() {
             when(repository.findById(1L)).thenReturn(Optional.of(activeEntity));
             when(repository.existsByParameterCodeIgnoreCaseAndCycleNameIgnoreCaseAndParameterIdNot(
-                    "TIMEOUT", "DAILY_CYCLE", 1L)).thenReturn(true);
+                    CODE_TIMEOUT, CYCLE_DAILY, 1L)).thenReturn(true);
 
-            assertThatThrownBy(() -> service.update(1L, dto("TIMEOUT", "DAILY_CYCLE"), ACTOR, CORR_ID))
+            assertThatThrownBy(() -> service.update(1L, dto(CODE_TIMEOUT, CYCLE_DAILY), ACTOR, CORR_ID))
                     .isInstanceOf(ResponseStatusException.class)
                     .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                             .isEqualTo(HttpStatus.CONFLICT));
@@ -542,17 +555,17 @@ class CycleParameterServiceTest {
                     anyString(), anyString(), anyLong())).thenReturn(false);
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            CycleParameterDto d = dto("  timeout  ", "DAILY_CYCLE");
+            CycleParameterDto d = dto("  timeout  ", CYCLE_DAILY);
             d.setParameterName("  Timeout  ");
             d.setParameterDesc("  Request timeout  ");
             service.update(1L, d, ACTOR, CORR_ID);
 
             WorkstationCycleParameter saved = captureSaved();
-            assertThat(saved.getParameterCode()).isEqualTo("TIMEOUT");
+            assertThat(saved.getParameterCode()).isEqualTo(CODE_TIMEOUT);
             assertThat(saved.getParameterName()).isEqualTo("Timeout");
             assertThat(saved.getParameterDesc()).isEqualTo("Request timeout");
             assertThat(saved.getUpdatedBy()).isEqualTo(ACTOR);
-            assertThat(saved.getCreatedBy()).isEqualTo("creator");
+            assertThat(saved.getCreatedBy()).isEqualTo(CREATED_BY);
         }
 
         @Test
@@ -561,7 +574,7 @@ class CycleParameterServiceTest {
             when(repository.findById(1L)).thenReturn(Optional.of(activeEntity));
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            service.update(1L, dto("MAX_RETRY", "DAILY_CYCLE"), ACTOR, CORR_ID);
+            service.update(1L, dto(CODE_MAX_RETRY, CYCLE_DAILY), ACTOR, CORR_ID);
 
             assertThat(captureSaved().getParameterId()).isEqualTo(1L);
         }
@@ -569,11 +582,12 @@ class CycleParameterServiceTest {
         @Test
         @DisplayName("FAILS TODAY: a null isActive on the DTO wipes the stored flag")
         void nullFlagsOverwriteStoredValues() {
-            // create() defaults nulls to Y/N; update() writes them straight through.
+            // The create path defaults nulls to Y and N; the update path writes them
+            // straight through, so a partial payload silently clears the flags.
             when(repository.findById(1L)).thenReturn(Optional.of(activeEntity));
             when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-            CycleParameterDto d = dto("MAX_RETRY", "DAILY_CYCLE");
+            CycleParameterDto d = dto(CODE_MAX_RETRY, CYCLE_DAILY);
             d.setIsActive(null);
             d.setIsRestricted(null);
             d.setDefaultValue(null);
@@ -592,7 +606,7 @@ class CycleParameterServiceTest {
             when(repository.save(any())).thenReturn(activeEntity);
 
             EnterpriseApiResponse<CycleParameterDto> response =
-                    service.update(1L, dto("MAX_RETRY", "DAILY_CYCLE"), ACTOR, CORR_ID);
+                    service.update(1L, dto(CODE_MAX_RETRY, CYCLE_DAILY), ACTOR, CORR_ID);
 
             assertThat(response.getData().getParameterId()).isEqualTo(1L);
             assertThat(response.getBusinessMessage()).contains("updated");
@@ -637,7 +651,7 @@ class CycleParameterServiceTest {
         @Test
         @DisplayName("deletes an already-inactive record without complaint")
         void deletesInactiveRecord() {
-            WorkstationCycleParameter inactive = entity(2L, "OLD", "DAILY_CYCLE", "N");
+            WorkstationCycleParameter inactive = entity(2L, "OLD", CYCLE_DAILY, "N");
             when(repository.findById(2L)).thenReturn(Optional.of(inactive));
 
             service.delete(2L, ACTOR, CORR_ID);
@@ -657,14 +671,14 @@ class CycleParameterServiceTest {
 
         CycleParameterDto d = service.getById(1L, CORR_ID).getData();
 
-        assertThat(d.getCreatedBy()).isEqualTo("creator");
+        assertThat(d.getCreatedBy()).isEqualTo(CREATED_BY);
         assertThat(d.getCreatedDate()).isEqualTo(activeEntity.getCreatedDate());
-        assertThat(d.getModifiedBy()).isEqualTo("updater");
+        assertThat(d.getModifiedBy()).isEqualTo(MODIFIED_BY);
         assertThat(d.getModifiedDate()).isEqualTo(activeEntity.getUpdatedDate());
-        assertThat(d.getParameterDesc()).isEqualTo("Maximum retry attempts");
+        assertThat(d.getParameterDesc()).isEqualTo(DESC_MAX_RETRY);
         assertThat(d.getDefaultValue()).isEqualTo("3");
         assertThat(d.getIsRestricted()).isEqualTo("N");
-        assertThat(d.getCycleName()).isEqualTo("DAILY_CYCLE");
+        assertThat(d.getCycleName()).isEqualTo(CYCLE_DAILY);
     }
 
     private WorkstationCycleParameter captureSaved() {
