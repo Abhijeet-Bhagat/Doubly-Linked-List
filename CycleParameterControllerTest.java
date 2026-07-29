@@ -12,12 +12,15 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.util.List;
 import java.util.UUID;
@@ -41,32 +44,46 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Web-layer tests for {@link CycleParameterController}.
  *
- * Scope: request mapping, parameter binding/defaults, correlation-id resolution,
- * actor extraction, status codes and exception -> status mapping.
- * Business rules (uppercase code, uniqueness) belong in the service test.
+ * Scope: request mapping, parameter binding and defaults, correlation-id
+ * resolution, actor extraction, status codes and exception to status mapping.
+ * Business rules such as uppercase code and uniqueness belong in the service test.
  *
- * NOTE: adjust the following to your codebase before running:
- *  - GlobalExceptionHandler class name in @Import
+ * Adjust before running:
+ *  - GlobalExceptionHandler class name if you import it explicitly
  *  - ResourceNotFoundException / DuplicateResourceException imports
- *  - CORR_HEADER value (must match Constants.FID_LOG_TRACKING_ID)
+ *  - CORR_HEADER value must match Constants.FID_LOG_TRACKING_ID
  *  - jsonPath roots if EnterpriseApiResponse does not expose "data"
+ *
+ * S5960 is suppressed because these are test assertions. The real fix is to
+ * register src/test/java as test sources in the Sonar scan (see delivery note);
+ * this annotation is only a fallback so the file stays clean if that config lags.
  */
 @WebMvcTest(controllers = CycleParameterController.class)
-@AutoConfigureMockMvc(addFilters = false) // RBAC filters/aspects are covered separately
+@AutoConfigureMockMvc(addFilters = false) // RBAC filters and aspects are covered separately
+@SuppressWarnings("java:S5960")
 class CycleParameterControllerTest {
 
     private static final String BASE = "/api/shares-job-cycle-mgr/v1/admin/cycle-parameters";
     private static final String CORR_HEADER = "fid-log-tracking-id";
     private static final String CORR_ID = "test-corr-id-123";
+    private static final String ACTOR = "abhi123";
+    private static final String SYSTEM_ACTOR = "SYSTEM";
+    private static final String CYCLE_DAILY = "DAILY_CYCLE";
+    private static final String CODE_MAX_RETRY = "MAX_RETRY";
+    private static final String NOT_FOUND_MSG = "Cycle parameter not found";
+    private static final String DATA_CODE = "$.data.parameterCode";
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @MockBean
+    @MockitoBean
     private CycleParameterService cycleParameterService;
+
+    private final MockMvc mockMvc;
+    private final ObjectMapper objectMapper;
+
+    @Autowired
+    CycleParameterControllerTest(MockMvc mockMvc, ObjectMapper objectMapper) {
+        this.mockMvc = mockMvc;
+        this.objectMapper = objectMapper;
+    }
 
     private CycleParameterDto validDto;
 
@@ -74,9 +91,13 @@ class CycleParameterControllerTest {
     void setUp() {
         validDto = new CycleParameterDto();
         validDto.setParameterId(1L);
-        validDto.setCycleName("DAILY_CYCLE");
-        validDto.setParameterCode("MAX_RETRY");
+        validDto.setCycleName(CYCLE_DAILY);
+        validDto.setParameterCode(CODE_MAX_RETRY);
         validDto.setParameterValue("3");
+    }
+
+    private static RequestPostProcessor asUser(String user) {
+        return authentication(new UsernamePasswordAuthenticationToken(user, "n/a"));
     }
 
     // ------------------------------------------------------------------
@@ -179,8 +200,8 @@ class CycleParameterControllerTest {
         @Test
         @DisplayName("rejects a negative page index rather than returning 500")
         void rejectsNegativePage() throws Exception {
-            // PageRequest.of(-1, ...) throws IllegalArgumentException.
-            // This currently surfaces as 500 unless the advice maps it -> see notes.
+            // A negative page index makes the underlying pageable factory throw,
+            // which should surface as a 400 rather than a 500 once the advice maps it.
             mockMvc.perform(get(BASE).param("page", "-1"))
                     .andExpect(status().isBadRequest());
         }
@@ -217,14 +238,14 @@ class CycleParameterControllerTest {
             mockMvc.perform(get(BASE + "/1").header(CORR_HEADER, CORR_ID))
                     .andExpect(status().isOk())
                     .andExpect(header().string(CORR_HEADER, CORR_ID))
-                    .andExpect(jsonPath("$.data.parameterCode").value("MAX_RETRY"));
+                    .andExpect(jsonPath(DATA_CODE).value(CODE_MAX_RETRY));
         }
 
         @Test
         @DisplayName("returns 404 when the service reports the record is missing")
         void returnsNotFound() throws Exception {
             when(cycleParameterService.getById(eq(99L), anyString()))
-                    .thenThrow(new ResourceNotFoundException("Cycle parameter not found"));
+                    .thenThrow(new ResourceNotFoundException(NOT_FOUND_MSG));
 
             mockMvc.perform(get(BASE + "/99"))
                     .andExpect(status().isNotFound());
@@ -246,13 +267,13 @@ class CycleParameterControllerTest {
     @DisplayName("cycle-names resolves to the literal route, not /{parameterId}")
     void cycleNamesDoesNotCollideWithIdRoute() throws Exception {
         when(cycleParameterService.getCycleNames(anyString()))
-                .thenReturn(List.of("DAILY_CYCLE", "WEEKLY_CYCLE"));
+                .thenReturn(List.of(CYCLE_DAILY, "WEEKLY_CYCLE"));
 
         mockMvc.perform(get(BASE + "/cycle-names").header(CORR_HEADER, CORR_ID))
                 .andExpect(status().isOk())
                 .andExpect(header().string(CORR_HEADER, CORR_ID))
                 .andExpect(jsonPath("$.data.length()").value(2))
-                .andExpect(jsonPath("$.data[0]").value("DAILY_CYCLE"));
+                .andExpect(jsonPath("$.data[0]").value(CYCLE_DAILY));
 
         verify(cycleParameterService, never()).getById(any(), anyString());
     }
@@ -278,31 +299,31 @@ class CycleParameterControllerTest {
         @Test
         @DisplayName("returns 201 and forwards the authenticated actor name")
         void createsWithAuthenticatedActor() throws Exception {
-            when(cycleParameterService.create(any(), eq("abhi123"), anyString())).thenReturn(validDto);
+            when(cycleParameterService.create(any(), eq(ACTOR), anyString())).thenReturn(validDto);
 
             mockMvc.perform(post(BASE)
-                            .with(authentication(new UsernamePasswordAuthenticationToken("abhi123", "n/a")))
+                            .with(asUser(ACTOR))
                             .header(CORR_HEADER, CORR_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(validDto)))
                     .andExpect(status().isCreated())
                     .andExpect(header().string(CORR_HEADER, CORR_ID))
-                    .andExpect(jsonPath("$.data.parameterCode").value("MAX_RETRY"));
+                    .andExpect(jsonPath(DATA_CODE).value(CODE_MAX_RETRY));
 
-            verify(cycleParameterService).create(any(CycleParameterDto.class), eq("abhi123"), eq(CORR_ID));
+            verify(cycleParameterService).create(any(CycleParameterDto.class), eq(ACTOR), eq(CORR_ID));
         }
 
         @Test
         @DisplayName("falls back to SYSTEM when there is no Authentication")
         void fallsBackToSystemActor() throws Exception {
-            when(cycleParameterService.create(any(), eq("SYSTEM"), anyString())).thenReturn(validDto);
+            when(cycleParameterService.create(any(), eq(SYSTEM_ACTOR), anyString())).thenReturn(validDto);
 
             mockMvc.perform(post(BASE)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(validDto)))
                     .andExpect(status().isCreated());
 
-            verify(cycleParameterService).create(any(), eq("SYSTEM"), anyString());
+            verify(cycleParameterService).create(any(), eq(SYSTEM_ACTOR), anyString());
         }
 
         @Test
@@ -351,24 +372,24 @@ class CycleParameterControllerTest {
         @Test
         @DisplayName("returns 200 and forwards id, dto, actor and corrId")
         void updatesSuccessfully() throws Exception {
-            when(cycleParameterService.update(eq(1L), any(), eq("abhi123"), anyString())).thenReturn(validDto);
+            when(cycleParameterService.update(eq(1L), any(), eq(ACTOR), anyString())).thenReturn(validDto);
 
             mockMvc.perform(put(BASE + "/1")
-                            .with(authentication(new UsernamePasswordAuthenticationToken("abhi123", "n/a")))
+                            .with(asUser(ACTOR))
                             .header(CORR_HEADER, CORR_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(validDto)))
                     .andExpect(status().isOk())
                     .andExpect(header().string(CORR_HEADER, CORR_ID));
 
-            verify(cycleParameterService).update(eq(1L), any(CycleParameterDto.class), eq("abhi123"), eq(CORR_ID));
+            verify(cycleParameterService).update(eq(1L), any(CycleParameterDto.class), eq(ACTOR), eq(CORR_ID));
         }
 
         @Test
         @DisplayName("returns 404 when the target record does not exist")
         void returnsNotFound() throws Exception {
             when(cycleParameterService.update(eq(99L), any(), anyString(), anyString()))
-                    .thenThrow(new ResourceNotFoundException("Cycle parameter not found"));
+                    .thenThrow(new ResourceNotFoundException(NOT_FOUND_MSG));
 
             mockMvc.perform(put(BASE + "/99")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -412,13 +433,13 @@ class CycleParameterControllerTest {
         @DisplayName("returns 204 with no body and the correlation header")
         void deletesSuccessfully() throws Exception {
             mockMvc.perform(delete(BASE + "/1")
-                            .with(authentication(new UsernamePasswordAuthenticationToken("abhi123", "n/a")))
+                            .with(asUser(ACTOR))
                             .header(CORR_HEADER, CORR_ID))
                     .andExpect(status().isNoContent())
                     .andExpect(header().string(CORR_HEADER, CORR_ID))
                     .andExpect(result -> assertThat(result.getResponse().getContentAsString()).isEmpty());
 
-            verify(cycleParameterService).delete(1L, "abhi123", CORR_ID);
+            verify(cycleParameterService).delete(1L, ACTOR, CORR_ID);
         }
 
         @Test
@@ -427,13 +448,13 @@ class CycleParameterControllerTest {
             mockMvc.perform(delete(BASE + "/1"))
                     .andExpect(status().isNoContent());
 
-            verify(cycleParameterService).delete(eq(1L), eq("SYSTEM"), anyString());
+            verify(cycleParameterService).delete(eq(1L), eq(SYSTEM_ACTOR), anyString());
         }
 
         @Test
         @DisplayName("returns 404 when the record does not exist")
         void returnsNotFound() throws Exception {
-            org.mockito.Mockito.doThrow(new ResourceNotFoundException("Cycle parameter not found"))
+            org.mockito.Mockito.doThrow(new ResourceNotFoundException(NOT_FOUND_MSG))
                     .when(cycleParameterService).delete(eq(99L), anyString(), anyString());
 
             mockMvc.perform(delete(BASE + "/99"))
@@ -453,6 +474,6 @@ class CycleParameterControllerTest {
         mockMvc.perform(delete(BASE + "/1").with(authentication(authWithNullPrincipal)))
                 .andExpect(status().isNoContent());
 
-        verify(cycleParameterService).delete(eq(1L), eq("SYSTEM"), anyString());
+        verify(cycleParameterService).delete(eq(1L), eq(SYSTEM_ACTOR), anyString());
     }
 }
