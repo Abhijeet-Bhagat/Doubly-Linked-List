@@ -1,0 +1,55 @@
+<div class="user-badge" [class.user-badge--drawer]="layout() === 'drawer'">
+  <span class="user-badge__avatar" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+      <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
+    </svg>
+  </span>
+  <span class="user-badge__name">Welcome {{ authService.getUserName() }}</span>
+  <button type="button" class="user-badge__logout" (click)="authService.logout()">Logout</button>
+</div>
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &__avatar {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #ccc; color: #555; flex-shrink: 0; overflow: hidden;
+  }
+  &__name { font-size: 0.875rem; font-weight: 500; color: #fff; white-space: nowrap; }
+  &__logout {
+    border: none; background: none; color: #fff;
+    font-size: 0.875rem; cursor: pointer; padding: 0;
+    &:hover { text-decoration: underline; }
+  }
+
+  &--drawer {
+    width: 100%;
+    padding: 14px 16px;
+    background: #044014;
+    .user-badge__name { flex: 1; }
+  }
+}
+
+
+
+
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+
+@Component({
+  selector: 'app-user-badge',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './user-badge.component.html',
+  styleUrl: './user-badge.component.scss',
+})
+export class UserBadgeComponent {
+  protected readonly authService = inject(AuthService);
+  readonly layout = input<'header' | 'drawer'>('header');
+}
+
+
+
+
