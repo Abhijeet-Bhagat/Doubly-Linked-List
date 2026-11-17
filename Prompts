@@ -1,0 +1,28 @@
+Go with option 1 (full spec), but deliver it in phases so the screen works after each one:
+
+Phase 0 – Design records first
+- Write an ADR: "Worklist redesign – grouped tabs, send back, comments" and update the Phase 3 LLD with the new endpoints. Keep it short.
+
+Phase 1 – UI on the existing API (no backend changes)
+- Build the split list/detail layout exactly per worklist-screen-spec.md.
+- Derive the three tabs and groups client-side from the existing nine views:
+  To decide = items where I'm an approver for the current stage and not the submitter;
+  My requests = my submitted items (in review / rejected-back);
+  Done = decided items, filtered to the last 30 days on the client.
+- Tab counts come from the same data, so no new count endpoint yet.
+- Wire Approve, Reject (with required note) and Withdraw to the existing endpoints.
+- Hide Send back, Resubmit, Send reminder and the comment box behind a feature flag for now.
+
+Phase 2 – Backend for core governance (Spring Boot)
+- POST /api/requests/{id}/send-back {note} (note required, 400 NOTE_REQUIRED)
+- POST /api/requests/{id}/resubmit (submitter only)
+- POST /api/requests/{id}/comments {text} + include comments in the request timeline
+- Enforce no self-approval on approve/send-back/reject (403 SELF_APPROVAL) and 409 ALREADY_DECIDED.
+- Turn the flag on for Send back, Resubmit and comments.
+
+Phase 3 – Nice to have (only if time allows)
+- GET /api/worklist/summary for counts + polling
+- POST /api/requests/{id}/remind (1 per 24h)
+- Deferred-commit Undo (6 s)
+
+Don't add anything that isn't in the spec. Stop after each phase so I can review.
